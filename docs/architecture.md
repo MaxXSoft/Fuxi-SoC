@@ -38,6 +38,7 @@ ROM. ROM changes require a new bitstream.
 CLINT implements `msip` at `0`, `mtimecmp` at `0x4000` and `mtime` at `0xbff8`.
 Its 64-bit `mtime` also drives the core's `time/timeh` CSR input. Both halves of
 the timer are writable, with byte strobes; `mtimecmp` resets to all ones.
+The timer IRQ is registered and reflects changes one cycle later.
 
 PLIC implements priorities 0–7, pending bits, per-context enables, threshold,
 and claim/complete at standard offsets. Context 0 is M-mode and context 1 is
@@ -45,7 +46,9 @@ S-mode. Source 10 is PS UART1's dedicated `IRQ_P2F_UART1` signal; other sources
 are tied low. Inputs pass through two synchronizer stages. Gateways are level
 sensitive and do not accept another request until completion. Claim clears the
 shared pending bit atomically and ignores threshold, while notification obeys
-threshold. Lowest source ID wins ties. Registers use aligned 32-bit accesses;
+threshold. Lowest source ID wins ties. A five-level balanced arbitration tree computes
+the winning request; CPU-facing notifications are registered with one cycle of
+latency so arbitration does not extend the core's trap-selection path. Registers use aligned 32-bit accesses;
 completion requires all four write strobes. Reserved reads return zero.
 
 ## Boot sequence

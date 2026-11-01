@@ -6,7 +6,7 @@ module clint (
   (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 resetn RST",
      X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
   input wire resetn,
-  output wire irq_soft, output wire irq_timer, output reg [63:0] rtc_time,
+  output wire irq_soft, output reg irq_timer, output reg [63:0] rtc_time,
   (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
   input wire [15:0] s_axi_awaddr,
   (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWVALID" *)
@@ -73,7 +73,12 @@ module clint (
   reg msip;
   reg [63:0] mtimecmp;
   assign irq_soft = msip;
-  assign irq_timer = rtc_time >= mtimecmp;
+  // The timer interrupt reflects mtime/mtimecmp with one cycle of latency.
+  // This also keeps its comparator out of the CPU's trap-selection path.
+  always @(posedge clk) begin
+    if (!resetn) irq_timer <= 0;
+    else irq_timer <= rtc_time >= mtimecmp;
+  end
   integer b;
   always @(posedge clk) begin
     if (!resetn) begin

@@ -6,7 +6,7 @@ module plic (
   (* X_INTERFACE_INFO = "xilinx.com:signal:reset:1.0 resetn RST",
      X_INTERFACE_PARAMETER = "POLARITY ACTIVE_LOW" *)
   input wire resetn,
-  input wire [31:1] sources, output wire irq_m, output wire irq_s,
+  input wire [31:1] sources, output reg irq_m, output reg irq_s,
   (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWADDR" *)
   input wire [21:0] s_axi_awaddr,
   (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI AWVALID" *)
@@ -78,19 +78,37 @@ module plic (
   reg [2:0] threshold [0:1];
   reg [4:0] winner [0:1];
   reg [2:0] best [0:1];
+  reg [4:0] tree_id [0:1][1:63];
+  reg [2:0] tree_pri [0:1][1:63];
   integer c, i;
+  // Balanced tournament: five comparator levels, independent of source count
+  // within this 32-leaf tree. Equal priorities choose the lower source ID.
   // Claim ignores threshold, as required by the PLIC specification.
   always @* begin
     for (c=0; c<2; c=c+1) begin
-      winner[c] = 0; best[c] = 0;
-      for (i=1; i<32; i=i+1)
-        if (pending[i] && enables[c][i] && priority_reg[i] > best[c]) begin
-          winner[c] = i[4:0]; best[c] = priority_reg[i];
+      tree_pri[c][32] = 0; tree_id[c][32] = 0;
+      for (i=1; i<32; i=i+1) begin
+        tree_pri[c][32+i] = (pending[i] && enables[c][i]) ? priority_reg[i] : 3'b0;
+        tree_id[c][32+i] = i[4:0];
+      end
+      for (i=31; i>0; i=i-1) begin
+        if (tree_pri[c][2*i] >= tree_pri[c][2*i+1]) begin
+          tree_pri[c][i] = tree_pri[c][2*i]; tree_id[c][i] = tree_id[c][2*i];
+        end else begin
+          tree_pri[c][i] = tree_pri[c][2*i+1]; tree_id[c][i] = tree_id[c][2*i+1];
         end
+      end
+      best[c] = tree_pri[c][1];
+      winner[c] = (best[c] == 0) ? 5'b0 : tree_id[c][1];
     end
   end
-  assign irq_m = best[0] > threshold[0];
-  assign irq_s = best[1] > threshold[1];
+  // PLIC notification may lag register/gateway changes by one cycle. Keeping
+  // the CPU-facing interrupt registered avoids a combinational path through
+  // arbitration and the core's trap/flush selection in the same cycle.
+  always @(posedge clk) begin
+    if (!resetn) begin irq_m <= 0; irq_s <= 0; end
+    else begin irq_m <= best[0] > threshold[0]; irq_s <= best[1] > threshold[1]; end
+  end
   wire claim_m = rd_en && rd_addr == 22'h200004;
   wire claim_s = rd_en && rd_addr == 22'h201004;
   integer j, b;

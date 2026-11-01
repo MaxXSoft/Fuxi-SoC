@@ -137,6 +137,7 @@ module peripherals_tb;
     @(negedge clk); p_rready=0;
   endtask
   reg [31:0] v;
+  integer source_id, expected_priority;
   initial begin
     #200000; $fatal(1,"timeout");
   end
@@ -176,6 +177,19 @@ module peripherals_tb;
     p_read('h1000,v); if(v != 0) $fatal(1,"pending clear");
     p_write(0,7); p_read(0,v); if(v != 0) $fatal(1,"source zero reserved");
     p_write('h2080,'hffffffff); p_read('h2080,v); if(v!='hfffffffe) $fatal(1,"enable WARL");
+    // All leaves of the arbitration tree, descending priorities then ascending IDs.
+    p_write('h2000,'hfffffffe); p_write('h2080,0); p_write('h200000,0);
+    for (source_id=1; source_id<32; source_id=source_id+1)
+      p_write(22'(source_id*4), 32'(source_id%7+1));
+    @(negedge clk); sources='1;
+    repeat(5) @(negedge clk);
+    for (expected_priority=7; expected_priority>0; expected_priority=expected_priority-1)
+      for (source_id=1; source_id<32; source_id=source_id+1)
+        if (source_id%7+1 == expected_priority) begin
+          p_read('h200004,v);
+          if(v != 32'(source_id)) $fatal(1,"full PLIC priority ordering");
+        end
+    p_read('h200004,v); if(v != 0) $fatal(1,"no duplicate claims");
     $display("PASS: CLINT, PLIC, independent AW/W, response backpressure");
     $finish;
   end
