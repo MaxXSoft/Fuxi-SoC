@@ -1,9 +1,12 @@
 [submodule "third_party/fuxi"]
 	path = third_party/fuxi
 	url = https://github.com/MaxXSoft/Fuxi.git
+	shallow = true
 [submodule "third_party/embeddedsw"]
 	path = third_party/embeddedsw
 	url = https://github.com/Xilinx/embeddedsw.git
+	shallow = true
 [submodule "third_party/lz4"]
 	path = third_party/lz4
 	url = https://github.com/lz4/lz4.git
+	shallow = true
