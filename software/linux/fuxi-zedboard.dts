@@ -1,0 +1,105 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "Fuxi ZedBoard";
+	compatible = "fuxi,zedboard";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon=cdns,mmio,0x10000000 console=ttyPS0,115200 rdinit=/init panic=-1 fuxi.interactive=1";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x08000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* The RV32 kernel begins at the next 4 MiB boundary. */
+		opensbi@80000000 {
+			reg = <0 0x80000000 0 0x00400000>;
+			no-map;
+		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <50000000>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "riscv";
+			reg = <0>;
+			status = "okay";
+			riscv,isa = "rv32imac_zicsr_zifencei_zicntr";
+			riscv,isa-base = "rv32i";
+			riscv,isa-extensions = "i", "m", "a", "c", "zicsr", "zifencei", "zicntr";
+			mmu-type = "riscv,sv32";
+
+			cpu0_intc: interrupt-controller {
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+			};
+		};
+	};
+
+	/* FSBL leaves these PS clocks running; Fuxi does not own the ARM SLCR. */
+	uart_clk: uart-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <50000000>;
+	};
+	uart_pclk: uart-pclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <111111111>;
+	};
+
+	soc {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		compatible = "simple-bus";
+		ranges;
+
+		uart0: serial@10000000 {
+			compatible = "xlnx,xuartps", "cdns,uart-r1p8";
+			reg = <0 0x10000000 0 0x1000>;
+			/* No clock-frequency property: OpenSBI preserves FSBL's baud
+			 * divisors. Linux obtains the actual rates from these clocks. */
+			clocks = <&uart_clk>, <&uart_pclk>;
+			clock-names = "uart_clk", "pclk";
+			current-speed = <115200>;
+			interrupt-parent = <&plic>;
+			interrupts = <10>;
+		};
+
+		clint@11000000 {
+			compatible = "riscv,clint0";
+			reg = <0 0x11000000 0 0x10000>;
+			interrupts-extended = <&cpu0_intc 3>, <&cpu0_intc 7>;
+		};
+
+		plic: interrupt-controller@12000000 {
+			compatible = "sifive,plic-1.0.0", "riscv,plic0";
+			reg = <0 0x12000000 0 0x00400000>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			interrupt-controller;
+			riscv,ndev = <31>;
+			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>;
+		};
+	};
+};

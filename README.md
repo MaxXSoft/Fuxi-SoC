@@ -12,3 +12,20 @@ retains its own license. This repository's original code is licensed under MIT.
 The PS initializes DDR/MIO/clocks, configures the PL, enables QSPI linear reads,
 and releases Fuxi. ARM then parks. Fuxi loads OpenSBI, Linux and its device tree
 from Flash into DDR. There is no runtime ARM monitor.
+
+- [Build, test, rsync and firmware packaging](docs/build.md)
+- [Address map, interrupts and boot/software contract](docs/architecture.md)
+
+```sh
+make prepare RISCV_CC=clang RISCV_OBJCOPY=llvm-objcopy RISCV_LD=ld.lld
+make test
+# On the Vivado Linux host, after syncing the prepared sources:
+make fpga
+make fsbl
+```
+
+The board-specific Boot ROM is independent of verilator-axi-testbench's existing
+loader. A common generic OpenSBI/kernel/userspace build can run on both with
+separate device trees and both UART drivers enabled. This repository supplies
+the board device tree and kernel configuration fragment; it does not vendor a
+second Linux distribution.
