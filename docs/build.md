@@ -52,8 +52,8 @@ make sync REMOTE=my-server REMOTE_DIR=/host/path/Fuxi-SoC
 ssh my-server 'docker exec my-container bash -lc "source /opt/AMD/2025.2/Vivado/settings64.sh; cd /container/path/Fuxi-SoC; make fpga"'
 ```
 
-`make sync` does not delete remote files. It excludes `.git`, sbt targets, tests
-and logs, and transfers the prepared portable RTL/ROM inputs separately.
+`make sync` does not delete remote files. It excludes `.git`, sbt targets and
+generated build outputs, and transfers the prepared portable RTL/ROM inputs separately.
 `make fpga` creates a fresh project, validates the block design, synthesizes,
 places, routes, writes the bitstream and exports the hardware platform.
 

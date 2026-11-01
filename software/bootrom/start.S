@@ -8,7 +8,7 @@ _start:
     .option norelax
     la gp, __global_pointer$
     .option pop
-    la t0, trap
+    la t0, boot_trap
     csrw mtvec, t0
     la t0, __bss_start
     la t1, __bss_end
@@ -17,7 +17,10 @@ _start:
     addi t0, t0, 4
     j 1b
 2:  call boot_main
-trap:
+    # mtvec uses its low two bits for MODE, even when RVC is enabled.
+    .balign 4
+.global boot_trap
+boot_trap:
     csrci mstatus, 8
 3:  wfi
     j 3b

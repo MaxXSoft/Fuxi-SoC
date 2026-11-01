@@ -13,6 +13,8 @@ SECTIONS {
   } > WORK
   __global_pointer$ = ORIGIN(WORK) + 0x800;
   __stack_top = ORIGIN(WORK) + LENGTH(WORK);
+  ASSERT(_start == 0x200, "reset entry must match Fuxi reset PC")
+  ASSERT((boot_trap & 3) == 0, "mtvec handler must be four-byte aligned")
   ASSERT(SIZEOF(.data) == 0, "ROM must not contain initialized writable data")
   ASSERT(__bss_end + 0x4000 <= __stack_top, "insufficient boot stack")
   /DISCARD/ : { *(.comment*) *(.eh_frame*) }
