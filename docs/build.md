@@ -106,3 +106,22 @@ normal Flash-programming workflow, then select QSPI boot mode and reset.
 No real-board boot is implied by RTL tests or successful implementation. Board
 bring-up should check the FSBL handoff message, ROM message, OpenSBI banner,
 Linux console, timer ticks and bidirectional UART traffic in that order.
+
+For a kernel-only build that reuses an existing Fuxi-Linux initramfs and leaves
+that repository untouched, unpack the Linux revision recorded by Fuxi-Linux's
+`sources.lock` into a clean directory, then run on Linux:
+
+```sh
+python3 scripts/build_linux.py --source /path/to/linux \
+  --config /path/to/Fuxi-Linux/output/images/linux.config \
+  --initramfs /path/to/Fuxi-Linux/output/images/rootfs.cpio \
+  --cross-compile riscv64-linux-gnu- --jobs 8
+make payload OPENSBI=/path/to/fw_jump.bin LINUX=build/Image
+```
+
+The cross compiler must support RV32/ILP32; the executable prefix alone does not
+select a 64-bit kernel. The script verifies RV32 and both UART console drivers
+in the resolved configuration. Host build dependencies include `bison`, `flex`,
+`bc`, OpenSSL and ELF development headers. All new kernel objects stay under
+`build/linux/`, and `build/Image` is the resulting common kernel. Recheck the
+simulator boot after changing kernel sources or toolchain versions.
