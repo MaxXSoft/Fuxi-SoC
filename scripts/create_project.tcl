@@ -8,6 +8,8 @@ set_property simulator_language Mixed [current_project]
 add_files [glob $root/build/fuxi/*.v]
 add_files $root/third_party/fuxi/verilog/FuxiWrapper.v
 add_files [glob $root/rtl/*.v]
+add_files -fileset constrs_1 $root/constraints/cache_ram.xdc
+set_property USED_IN_IMPLEMENTATION false [get_files cache_ram.xdc]
 create_bd_design soc
 create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 ps7
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 -config {make_external "FIXED_IO, DDR" apply_board_preset "1"} [get_bd_cells ps7]

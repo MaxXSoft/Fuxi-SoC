@@ -57,6 +57,14 @@ generated build outputs, and transfers the prepared portable RTL/ROM inputs sepa
 `make fpga` creates a fresh project, validates the block design, synthesizes,
 places, routes, writes the bitstream and exports the hardware platform.
 
+`constraints/cache_ram.xdc` forces the I/D-Cache **data arrays** into block RAM
+at their leaf memory instances. The constraint belongs to this FPGA platform;
+the core's Chisel memories remain portable. Asynchronous tag memories and
+valid/dirty metadata keep their existing lookup latency and may use LUTs/FFs.
+Synthesis and implementation both verify BRAM primitives under each data array
+and reject LUT RAM there. If a core/compiler update renames these instances,
+update the constraint and checker together; do not disable the check.
+
 Outputs:
 
 - `build/fuxi_zedboard.bit`, `build/fuxi_zedboard.xsa`.
@@ -64,6 +72,8 @@ Outputs:
   unconstrained paths and clock checks.
 - `build/reports/critical_paths.rpt`, `utilization.rpt`, `route_status.rpt`,
   `drc.rpt`, `methodology.rpt`, `clock_interaction.rpt`.
+- `build/reports/cache_ram_synth.rpt`, `cache_ram.rpt`: verified cache data RAM
+  mappings before and after implementation.
 
 The reports are evidence of that build, not repository inputs. A bitstream may
 be generated even when timing fails: inspect WNS/TNS and hold results before
