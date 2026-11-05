@@ -5,6 +5,9 @@ create_project -force fuxi_zedboard $out -part xc7z020clg484-1
 set_property board_part avnet.com:zedboard:part0:1.4 [current_project]
 set_property target_language Verilog [current_project]
 set_property simulator_language Mixed [current_project]
+# Optimize placement/routing and then revisit critical nets with actual route
+# delays. This changes physical implementation, not pipeline latency or clocks.
+set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
 add_files [glob $root/build/fuxi/*.v]
 add_files $root/third_party/fuxi/verilog/FuxiWrapper.v
 add_files [glob $root/rtl/*.v]

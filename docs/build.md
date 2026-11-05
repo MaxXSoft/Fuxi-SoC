@@ -56,6 +56,11 @@ ssh my-server 'docker exec my-container bash -lc "source /opt/AMD/2025.2/Vivado/
 generated build outputs, and transfers the prepared portable RTL/ROM inputs separately.
 `make fpga` creates a fresh project, validates the block design, synthesizes,
 places, routes, writes the bitstream and exports the hardware platform.
+Implementation uses Vivado's `Performance_ExplorePostRoutePhysOpt` strategy:
+Explore placement/routing followed by physical optimization using routed
+delays. The PS fabric clock remains 50 MHz; this does not add pipeline stages
+or relax timing constraints. Use the final `build/reports/` results, which
+include post-route optimization, rather than the intermediate routed checkpoint.
 
 `constraints/cache_ram.xdc` forces the I/D-Cache **data arrays** into block RAM
 at their leaf memory instances. The constraint belongs to this FPGA platform;
