@@ -11,8 +11,10 @@ RISCV_OBJCOPY ?= llvm-objcopy
 RISCV_LD ?=
 OPENSBI ?=
 LINUX ?=
+UBOOT_CROSS_COMPILE ?= arm-none-eabi-
+FLASH_IMAGE ?= $(ROOT)/build/flash/flash.bin
 
-.PHONY: all prepare rtl bootrom dtb test test-peripherals test-image project fpga fsbl payload flash sync
+.PHONY: all prepare rtl bootrom dtb test test-peripherals test-image project fpga fsbl payload flash sync sd-flasher sd-flasher-package test-sd-flasher
 all: prepare
 prepare: rtl bootrom dtb
 
@@ -55,6 +57,17 @@ payload: dtb
 
 flash:
 	$(PYTHON) scripts/package_flash.py
+
+# Independent PS-only SD boot environment; no Vivado/XSA/bitstream dependency.
+sd-flasher:
+	$(PYTHON) scripts/build_sd_flasher.py --cross-compile "$(UBOOT_CROSS_COMPILE)"
+	$(PYTHON) scripts/package_sd_flasher.py --flash "$(FLASH_IMAGE)"
+
+sd-flasher-package:
+	$(PYTHON) scripts/package_sd_flasher.py --flash "$(FLASH_IMAGE)"
+
+test-sd-flasher:
+	$(PYTHON) tests/test_sd_flasher.py
 
 sync:
 	test -n "$(REMOTE)" && test -n "$(REMOTE_DIR)"

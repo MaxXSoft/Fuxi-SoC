@@ -1,0 +1,40 @@
+# Explicitly source this script from the U-Boot prompt; never name it boot.scr.
+# The generated size and SHA-256 bind this script to its packaged flash.bin.
+if mmc dev 0 && mmc rescan; then
+    if size mmc 0:1 flash.bin && itest ${filesize} == @SIZE@; then
+        if fatload mmc 0:1 0x10000000 flash.bin && itest ${filesize} == @SIZE@; then
+            if hash -v sha256 0x10000000 @SIZE@ @SHA256@; then
+                if sf probe 0:0; then
+                    echo Writing Fuxi image to QSPI offset zero
+                    if sf update 0x10000000 0 @SIZE@; then
+                        if sf read 0x12000000 0 @SIZE@ && cmp.b 0x10000000 0x12000000 @SIZE@; then
+                            echo FUXI_FLASH_VERIFY_PASS
+                            echo Power off, select QSPI boot, then power on
+                        else
+                            echo FUXI_FLASH_VERIFY_FAIL
+                            false
+                        fi
+                    else
+                        echo FUXI_FLASH_WRITE_FAIL
+                        false
+                    fi
+                else
+                    echo FUXI_FLASH_PROBE_FAIL
+                    false
+                fi
+            else
+                echo FUXI_FLASH_INPUT_HASH_FAIL
+                false
+            fi
+        else
+            echo FUXI_FLASH_LOAD_FAIL
+            false
+        fi
+    else
+        echo FUXI_FLASH_INPUT_SIZE_FAIL
+        false
+    fi
+else
+    echo FUXI_FLASH_MMC_FAIL
+    false
+fi

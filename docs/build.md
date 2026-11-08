@@ -118,6 +118,11 @@ are checked against the 16 MiB bank-0 boundary. `flash.bin` is a raw Flash image
 not an SD-card filesystem image. Program it at QSPI offset 0 using the board's
 normal Flash-programming workflow, then select QSPI boot mode and reset.
 
+For a Mac-only programming workstation, [the SD maintenance flow](sd-flasher.md)
+boots U-Boot on the PS and programs/verifies `flash.bin` from SD. It needs no
+JTAG connection, USB forwarding or Vivado during programming. `make sd-flasher`
+builds its independent SPL/U-Boot boot environment from the pinned submodule.
+
 No real-board boot is implied by RTL tests or successful implementation. Board
 bring-up should check the FSBL handoff message, ROM message, OpenSBI banner,
 Linux console, timer ticks and bidirectional UART traffic in that order.
