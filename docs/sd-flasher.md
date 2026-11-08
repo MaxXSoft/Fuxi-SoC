@@ -8,14 +8,15 @@ Fuxi's normal QSPI boot path is unchanged.
 ## Files and startup
 
 Extract `build/sd-flasher/zedboard-sd-flasher.zip` to the root of the **first
-FAT32 partition on an MBR-partitioned SD card**. These four files are required:
+FAT32 partition on an MBR-partitioned SD card**. These five files are required:
 
 | File | Purpose |
 | --- | --- |
 | `BOOT.BIN` | U-Boot SPL, including the Zynq BootROM header and upstream ZedBoard PS/DDR initialization |
 | `u-boot.img` | U-Boot proper and its ZedBoard **ARM** device tree, loaded by SPL from SD |
 | `flash.bin` | Complete **Fuxi QSPI image**, including its custom ARM FSBL, PL bitstream and RISC-V software payload |
-| `flash-fuxi.scr` | Manually invoked update script bound to this particular `flash.bin` by size and SHA-256 |
+| `flash.meta` | Text file containing this image's byte length and SHA-256 |
+| `flash-fuxi.scr` | Reusable, manually invoked update script; independent of image contents |
 
 `BOOT.BIN` alone is not sufficient: keep `u-boot.img` beside it. Do not replace
 this SD `BOOT.BIN` with `build/flash/BOOT.BIN`, and do not write the SD SPL image
@@ -53,10 +54,15 @@ At the U-Boot prompt, this command explicitly starts the Flash update:
 fatload mmc 0:1 0x02000000 flash-fuxi.scr && source 0x02000000
 ```
 
-The script checks the SD file's exact size, loads it to DDR at `0x10000000`,
-checks SHA-256, probes QSPI, then runs `sf update` at offset 0. The package only
-accepts Fuxi images within the first 16 MiB, with a Zynq header and a Fuxi payload
-at offset 8 MiB. The script reads the programmed bytes back into DDR at
+The script loads `flash.meta` (at most 512 bytes) at `0x02100000`, importing only
+`fuxi_flash_size` and `fuxi_flash_sha256`. It clears previous values on every run;
+the metadata is data, never a script to execute. The image length is obtained
+from SD and must match the metadata before the bounded read to `0x10000000`.
+The script checks SHA-256, Zynq/Fuxi magic values and the bank-0 size bounds,
+probes QSPI, then runs `sf update` at offset 0. The host metadata generator also
+validates the Zynq header checksum and first-stage load bounds. Images must fit
+the first 16 MiB and include the Fuxi payload at offset 8 MiB.
+The script reads the programmed bytes back into DDR at
 `0x12000000` and compares every byte. These buffers do not overlap each other,
 the script at `0x02000000`, or U-Boot's relocated image near the top of 512 MiB DDR.
 QSPI update erases/writes affected sectors; padding in the final sector can be
@@ -66,7 +72,8 @@ Only **`FUXI_FLASH_VERIFY_PASS`** indicates a successful update and readback.
 Any `FAIL` message means stop and inspect the preceding error; do not continue
 with later commands from another recipe. A hash/size error before `sf update`
 leaves Flash unchanged. A write or readback error can leave a partial image;
-SD maintenance boot remains available to retry.
+SD maintenance boot remains available to retry. Missing, stale or corrupt
+metadata must be corrected before retrying; do not bypass the hash check.
 
 After PASS, **power off**, select QSPI boot, and power on. Removing the SD card
 is optional. A cold power cycle also resets the Flash addressing state. Do not
@@ -77,7 +84,35 @@ OpenSBI, Linux, then the initramfs shell. This procedure does not add SD storage
 support to Fuxi Linux. The maintenance U-Boot's device tree and PS initialization
 are independent of the Fuxi runtime device tree and custom FSBL.
 
-## Rebuild
+## Update the Fuxi image without rebuilding the flasher
+
+Install the reusable `flash-fuxi.scr` once when upgrading from the old,
+image-specific script. Existing SD `BOOT.BIN` and `u-boot.img` can be reused.
+After that, replace only **`flash.bin` and `flash.meta`** on SD. The U-Boot
+command above stays the same; no `mkimage`, U-Boot build or SD repack is needed.
+
+`make flash` automatically produces both files in `build/flash/`. For an
+existing image, generate its companion file using Python 3 on macOS or Linux:
+
+```sh
+python3 scripts/flash_metadata.py /absolute/path/to/flash.bin
+```
+
+This writes `flash.meta` next to the input. It validates the image layout and
+computes the metadata from the complete file; do not hand-edit the size/hash.
+The format is two LF-terminated `name=value` lines, with a canonical hexadecimal
+size (`0x` prefix, lowercase, no leading zeroes) and a 64-digit SHA-256 digest:
+
+```text
+fuxi_flash_size=0x...
+fuxi_flash_sha256=...
+```
+
+The `SHA256SUMS` file describes the original ZIP contents. After replacing the
+image/metadata pair, its entries for those two files will be out of date; the
+board verifies the new pair using `flash.meta`, not `SHA256SUMS`.
+
+## Rebuild the maintenance package
 
 The U-Boot source is pinned by the `third_party/u-boot` submodule (v2026.04).
 SPL uses `board/xilinx/zynq/zynq-zed/ps7_init_gpl.c`; no generated XSA, AMD FSBL
@@ -94,18 +129,35 @@ make sd-flasher
 
 `make sd-flasher` builds U-Boot and packages the existing `build/flash/flash.bin`.
 An alternate compiler prefix can be set with `UBOOT_CROSS_COMPILE=arm-linux-gnueabihf-`.
-Outputs stay under ignored `build/sd-flasher/`. To package a new Fuxi image
-without rebuilding U-Boot:
+Outputs stay under ignored `build/sd-flasher/`. To create a complete ZIP for
+distribution with a new Fuxi image, without rebuilding U-Boot:
 
 ```sh
 make sd-flasher-package FLASH_IMAGE=/absolute/path/to/flash.bin
 ```
 
-Copy **both** the regenerated `flash.bin` and `flash-fuxi.scr` to SD. Their size
-and hash must agree. The generated manifest records package checksums, resolved
+This refreshes `flash.meta` and the ZIP checksums. The script's contents do not
+change with the image. The generated manifest records package checksums, resolved
 U-Boot version, and the lack of physical-board validation. `make test-sd-flasher`
-checks package validation and update failure handling using host command stubs;
+checks package validation, reuse across images, and update failure handling
+(including stale/missing metadata) using host command stubs;
 it does not emulate Zynq hardware or prove a board boots.
+
+An additional regression exercises the actual U-Boot interpreter, environment
+import, SHA-256, memory comparisons and `source` return status. It substitutes
+host-file reads for SD and RAM copies for QSPI, without touching hardware:
+
+```sh
+python3 tests/test_sd_flasher_uboot.py \
+    --uboot /path/to/sandbox/u-boot --mkimage /path/to/tools/mkimage
+```
+
+Use a native sandbox U-Boot built from the pinned source with its sibling
+`u-boot.dtb`, `CONFIG_SANDBOX_RAM_SIZE_MB=512`, and `CONFIG_HUSH_OLD_PARSER=y`
+to match the board's interpreter. Keep hostfs, env import, SHA-256/hash, legacy
+script and memory commands enabled. The failure cases check that no QSPI
+operation is attempted and `source` takes the failure branch, including after
+old metadata values were left in the environment.
 
 The packager preserves the upstream SPL code/header and pads the file through
 the end declared in its BootROM load-length field. This accommodates v2026.04

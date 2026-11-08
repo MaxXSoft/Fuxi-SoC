@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a manually invoked, image-bound QSPI update on a FAT32 SD card."""
+"""Package a reusable manual QSPI updater and an image/metadata pair for SD."""
 import argparse
 import hashlib
 import json
@@ -11,18 +11,9 @@ import subprocess
 import zipfile
 
 from build_sd_flasher import check_config
+from flash_metadata import check_zynq_image, make_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def check_zynq_image(data):
-    if len(data) < 0x8c0:
-        raise ValueError('truncated Zynq boot image')
-    words = struct.unpack_from('<11I', data, 0x20)
-    if words[:2] != (0xaa995566, 0x584c4e58) or sum(words) & 0xffffffff != 0xffffffff:
-        raise ValueError('invalid Zynq boot header or checksum')
-    if words[4] < 0x8c0 or words[5] == 0 or words[4] + words[5] > len(data):
-        raise ValueError('invalid Zynq first-stage bounds')
 
 
 def prepare_spl(data):
@@ -41,17 +32,6 @@ def prepare_spl(data):
     return data
 
 
-def render_script(flash):
-    check_zynq_image(flash)
-    if not 0x800058 <= len(flash) <= 0x1000000:
-        raise ValueError('Fuxi Flash image must fit bank 0 and include the payload')
-    if flash[0x800000:0x800008] != b'FUXISOC\0':
-        raise ValueError('expected Fuxi payload at Flash offset 8 MiB')
-    template = (ROOT/'software/flasher/flash-fuxi.cmd.in').read_text()
-    return template.replace('@SIZE@', hex(len(flash))).replace(
-        '@SHA256@', hashlib.sha256(flash).hexdigest())
-
-
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--flash', type=Path, default=ROOT/'build/flash/flash.bin')
@@ -61,7 +41,7 @@ def main():
     out = work/'sdcard'
     check_config(uboot/'.config')
     flash = a.flash.read_bytes()
-    script = render_script(flash)
+    metadata = make_metadata(flash)
     boot = prepare_spl((uboot/'spl/boot.bin').read_bytes())
     out.mkdir(parents=True, exist_ok=True)
     # An old boot.scr could trigger unrelated commands in a different U-Boot.
@@ -71,7 +51,8 @@ def main():
     subprocess.run([str(uboot/'tools/mkimage'), '-l', str(out/'BOOT.BIN')], check=True)
     shutil.copyfile(uboot/'u-boot.img', out/'u-boot.img')
     (out/'flash.bin').write_bytes(flash)
-    (out/'flash-fuxi.cmd').write_text(script)
+    (out/'flash.meta').write_text(metadata)
+    shutil.copyfile(ROOT/'software/flasher/flash-fuxi.cmd', out/'flash-fuxi.cmd')
     env = dict(os.environ, SOURCE_DATE_EPOCH='1775498358')
     subprocess.run([str(uboot/'tools/mkimage'), '-A', 'arm', '-T', 'script',
                     '-C', 'none', '-n', 'Fuxi QSPI update', '-d',
@@ -81,7 +62,7 @@ def main():
     shutil.copyfile(uboot/'.config', out/'u-boot.config')
     shutil.copyfile(ROOT/'third_party/u-boot/Licenses/README', out/'U-Boot-LICENSES.txt')
     shutil.copyfile(ROOT/'third_party/u-boot/Licenses/gpl-2.0.txt', out/'GPL-2.0.txt')
-    names = ['BOOT.BIN', 'u-boot.img', 'flash.bin', 'flash-fuxi.cmd',
+    names = ['BOOT.BIN', 'u-boot.img', 'flash.bin', 'flash.meta', 'flash-fuxi.cmd',
              'flash-fuxi.scr', 'README.md', 'u-boot.config',
              'U-Boot-LICENSES.txt', 'GPL-2.0.txt']
     hashes = {n: hashlib.sha256((out/n).read_bytes()).hexdigest() for n in names}

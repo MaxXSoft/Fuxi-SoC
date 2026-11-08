@@ -28,6 +28,7 @@ def check_config(path):
         'CONFIG_ZYNQ_QSPI': 'y', 'CONFIG_SPI_FLASH_SPANSION': 'y',
         'CONFIG_MMC_SDHCI_ZYNQ': 'y', 'CONFIG_ZYNQ_SERIAL': 'y',
         'CONFIG_HUSH_PARSER': 'y',
+        'CONFIG_CMD_IMPORTENV': 'y',
     })
     for key, wanted in required.items():
         actual = values.get(key, 'n')

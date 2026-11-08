@@ -4,6 +4,8 @@ import argparse
 from pathlib import Path
 import subprocess
 
+from flash_metadata import make_metadata
+
 root = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser()
 p.add_argument('--fsbl', type=Path, default=root/'build/fsbl/fsbl.elf')
@@ -22,5 +24,9 @@ boot = (out/'BOOT.BIN').read_bytes()
 payload = a.payload.read_bytes()
 if len(boot) > 0x800000 or len(payload) > 0x800000:
     raise SystemExit('BOOT.BIN or payload overlaps its 8 MiB Flash allocation')
-(out/'flash.bin').write_bytes(boot + b'\xff'*(0x800000-len(boot)) + payload)
+flash = boot + b'\xff'*(0x800000-len(boot)) + payload
+metadata = make_metadata(flash)
+(out/'flash.bin').write_bytes(flash)
+(out/'flash.meta').write_text(metadata)
 print(f'{out}/flash.bin: {0x800000+len(payload)} bytes, program at Flash offset 0')
+print(f'{out}/flash.meta: copy alongside flash.bin for the SD flasher')

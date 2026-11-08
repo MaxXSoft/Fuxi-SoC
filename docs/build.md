@@ -114,8 +114,10 @@ make flash
 Run `make flash` in an environment with `bootgen` on PATH (Vivado settings).
 It builds `build/flash/BOOT.BIN` containing only FSBL and bitstream, and combines
 it with the payload at offset 8 MiB into `build/flash/flash.bin`. Both allocations
-are checked against the 16 MiB bank-0 boundary. `flash.bin` is a raw Flash image,
-not an SD-card filesystem image. Program it at QSPI offset 0 using the board's
+are checked against the 16 MiB bank-0 boundary. It also writes
+`build/flash/flash.meta` with the image length and SHA-256 for the reusable SD
+updater. `flash.bin` is a raw Flash image, not an SD-card filesystem image.
+Program it at QSPI offset 0 using the board's
 normal Flash-programming workflow, then select QSPI boot mode and reset.
 
 For a Mac-only programming workstation, [the SD maintenance flow](sd-flasher.md)
