@@ -113,7 +113,8 @@ corruption; they do not authenticate images.
 Scratch and stack can be reclaimed after the loader exits. Keep an uncompressed
 Linux `Image` as input; the packer performs its own LZ4 compression. OpenSBI does
 not read Flash itself. Bank switching and decompression do not need to be added
-to verilator-axi-testbench: it may keep its current ROM/loading process.
+to [verilator-axi-testbench](https://github.com/MaxXSoft/verilator-axi-testbench):
+it may keep its current ROM/loading process.
 
 ## Sharing software with the testbench
 
