@@ -1,4 +1,5 @@
 // Address translation is after Fuxi's cacheability decision.
+
 module fuxi_soc_cpu (
   (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK",
      X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF INST:DATA:UNCACHED, ASSOCIATED_RESET resetn" *)
@@ -229,25 +230,37 @@ module fuxi_soc_cpu (
       else translate = addr;
     end
   endfunction
+
   wire [31:0] core_inst_araddr;
   assign inst_araddr = translate(core_inst_araddr);
+
   wire [31:0] core_inst_awaddr;
   assign inst_awaddr = translate(core_inst_awaddr);
+
   wire [31:0] core_data_araddr;
   assign data_araddr = translate(core_data_araddr);
+
   wire [31:0] core_data_awaddr;
   assign data_awaddr = translate(core_data_awaddr);
+
   wire [31:0] core_uncached_araddr;
   assign uncached_araddr = translate(core_uncached_araddr);
+
   wire [31:0] core_uncached_awaddr;
   assign uncached_awaddr = translate(core_uncached_awaddr);
+
   FuxiWrapper cpu (
-    .clk(clk), .rst(!resetn), .irq_timer(irq_timer), .irq_soft(irq_soft),
-    .irq_extern(irq_m), .irq_sextern(irq_s), .rtc_time(rtc_time),
+    .clk(clk), .rst(!resetn),
+
+    .irq_timer(irq_timer), .irq_soft(irq_soft),
+    .irq_extern(irq_m), .irq_sextern(irq_s),
+    .rtc_time(rtc_time),
+
     .debug_wen(),
     .debug_waddr(),
     .debug_wdata(),
     .debug_pc(),
+
     .inst_arready(inst_arready),
     .inst_arvalid(inst_arvalid),
     .inst_araddr(core_inst_araddr),
@@ -357,4 +370,5 @@ module fuxi_soc_cpu (
     .uncached_bid(uncached_bid),
     .uncached_bresp(uncached_bresp)
   );
+
 endmodule

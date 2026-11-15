@@ -1,10 +1,13 @@
 # Run from any working directory: vivado -mode batch -source scripts/create_project.tcl
+
 set root [file normalize [file join [file dirname [info script]] ..]]
 set out [file join $root build vivado]
 create_project -force fuxi_zedboard $out -part xc7z020clg484-1
+
 set_property board_part avnet.com:zedboard:part0:1.4 [current_project]
 set_property target_language Verilog [current_project]
 set_property simulator_language Mixed [current_project]
+
 # Optimize placement/routing and then revisit critical nets with actual route
 # delays. This changes physical implementation, not pipeline latency or clocks.
 set_property strategy Performance_ExplorePostRoutePhysOpt [get_runs impl_1]
@@ -13,6 +16,7 @@ add_files $root/third_party/fuxi/verilog/FuxiWrapper.v
 add_files [glob $root/rtl/*.v]
 add_files -fileset constrs_1 $root/constraints/cache_ram.xdc
 set_property USED_IN_IMPLEMENTATION false [get_files cache_ram.xdc]
+
 create_bd_design soc
 create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 ps7
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 -config {make_external "FIXED_IO, DDR" apply_board_preset "1"} [get_bd_cells ps7]
@@ -42,6 +46,7 @@ create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 irq_zero_low
 set_property -dict [list CONFIG.CONST_VAL 0 CONFIG.CONST_WIDTH 9] [get_bd_cells irq_zero_low]
 create_bd_cell -type ip -vlnv xilinx.com:ip:xlconstant:1.1 irq_zero_high
 set_property -dict [list CONFIG.CONST_VAL 0 CONFIG.CONST_WIDTH 21] [get_bd_cells irq_zero_high]
+
 connect_bd_net [get_bd_pins irq_zero_low/dout] [get_bd_pins irq_sources/In0]
 connect_bd_net [get_bd_pins ps7/IRQ_P2F_UART1] [get_bd_pins irq_sources/In1]
 connect_bd_net [get_bd_pins irq_zero_high/dout] [get_bd_pins irq_sources/In2]
@@ -59,28 +64,36 @@ connect_bd_net [get_bd_pins clint_0/irq_timer] [get_bd_pins cpu/irq_timer]
 connect_bd_net [get_bd_pins clint_0/rtc_time] [get_bd_pins cpu/rtc_time]
 connect_bd_net [get_bd_pins plic_0/irq_m] [get_bd_pins cpu/irq_m]
 connect_bd_net [get_bd_pins plic_0/irq_s] [get_bd_pins cpu/irq_s]
+
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi
 set_property -dict [list CONFIG.NUM_SI 3 CONFIG.NUM_MI 4 \
  CONFIG.S00_HAS_REGSLICE 1 CONFIG.S01_HAS_REGSLICE 1 CONFIG.S02_HAS_REGSLICE 1 \
  CONFIG.M00_HAS_REGSLICE 1 CONFIG.M01_HAS_REGSLICE 1 CONFIG.M02_HAS_REGSLICE 1 CONFIG.M03_HAS_REGSLICE 1] [get_bd_cells axi]
+
 create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 rom_ctrl
 set_property -dict [list CONFIG.DATA_WIDTH 32 CONFIG.SINGLE_PORT_BRAM 1] [get_bd_cells rom_ctrl]
 add_files $root/build/bootrom/bootrom.mem
 set_property file_type {Memory Initialization Files} [get_files bootrom.mem]
+
 create_bd_cell -type module -reference boot_rom rom
 connect_bd_intf_net [get_bd_intf_pins rom_ctrl/BRAM_PORTA] [get_bd_intf_pins rom/BRAM]
+
 foreach {cpu_port axi_port} {INST S00_AXI DATA S01_AXI UNCACHED S02_AXI} {
  connect_bd_intf_net [get_bd_intf_pins cpu/$cpu_port] [get_bd_intf_pins axi/$axi_port]
 }
+
 foreach {axi_port target} {M00_AXI ps7/S_AXI_GP0 M01_AXI rom_ctrl/S_AXI M02_AXI clint_0/S_AXI M03_AXI plic_0/S_AXI} {
  connect_bd_intf_net [get_bd_intf_pins axi/$axi_port] [get_bd_intf_pins $target]
 }
+
 foreach pin {cpu/clk boot/clk clint_0/clk plic_0/clk resets/slowest_sync_clk core_resets/slowest_sync_clk ps7/S_AXI_GP0_ACLK axi/ACLK axi/S00_ACLK axi/S01_ACLK axi/S02_ACLK axi/M00_ACLK axi/M01_ACLK axi/M02_ACLK axi/M03_ACLK rom_ctrl/s_axi_aclk} {
  connect_bd_net [get_bd_pins ps7/FCLK_CLK0] [get_bd_pins $pin]
 }
+
 foreach pin {axi/ARESETN axi/S00_ARESETN axi/S01_ARESETN axi/S02_ARESETN axi/M00_ARESETN axi/M01_ARESETN axi/M02_ARESETN axi/M03_ARESETN rom_ctrl/s_axi_aresetn} {
  connect_bd_net [get_bd_pins resets/peripheral_aresetn] [get_bd_pins $pin]
 }
+
 # Only these PS windows are accessible; do not auto-map the entire PS DDR range.
 foreach space [get_bd_addr_spaces cpu/*] {
  assign_bd_address -target_address_space $space -offset 0x08000000 -range 0x08000000 [get_bd_addr_segs ps7/S_AXI_GP0/GP0_DDR_LOWOCM]
@@ -90,22 +103,26 @@ foreach space [get_bd_addr_spaces cpu/*] {
  assign_bd_address -target_address_space $space -offset 0x11000000 -range 0x10000 [get_bd_addr_segs clint_0/S_AXI/*]
  assign_bd_address -target_address_space $space -offset 0x12000000 -range 0x400000 [get_bd_addr_segs plic_0/S_AXI/*]
 }
+
 validate_bd_design
 foreach cell {resets core_resets} {
  if {[get_property CONFIG.C_AUX_RESET_HIGH [get_bd_cells $cell]] != 0 || [get_property CONFIG.C_EXT_RESET_HIGH [get_bd_cells $cell]] != 0} {
   error "Reset polarity changed: both ext_reset_in and aux_reset_in must be active-low"
  }
 }
+
 save_bd_design
 set bd [get_files $out/fuxi_zedboard.srcs/sources_1/bd/soc/soc.bd]
 set_property synth_checkpoint_mode None $bd
 generate_target all $bd
+
 set wrapper [make_wrapper -files $bd -top]
 add_files $wrapper
 set_property top soc_wrapper [current_fileset]
 puts [exec python3 $root/scripts/sanitize_vivado_headers.py $out]
 update_compile_order -fileset sources_1
 set_property top soc_wrapper [current_fileset]
+
 # Export the exact PS initialization used by the generated hardware.
 write_hw_platform -fixed -force -file $root/build/fuxi_zedboard.xsa
 puts "Created source-built ZedBoard project at $out"

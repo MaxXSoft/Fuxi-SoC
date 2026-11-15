@@ -1,5 +1,6 @@
 # Check the actual mapped primitives, rather than relying on the hint alone.
 # Fail if a core/compiler hierarchy change makes the XDC stop selecting data RAM.
+
 proc check_cache_ram {report_path} {
   set report [open $report_path w]
   foreach array {icache/lines_ext dcache/lines/mem_ext} {

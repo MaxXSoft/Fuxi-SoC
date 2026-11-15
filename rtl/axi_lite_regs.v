@@ -1,4 +1,5 @@
 // One outstanding transaction per direction; AW and W are independently buffered.
+
 module axi_lite_regs #(parameter ADDR_WIDTH = 16) (
   input wire clk, input wire resetn,
   input wire [ADDR_WIDTH-1:0] s_axi_awaddr,
@@ -16,7 +17,9 @@ module axi_lite_regs #(parameter ADDR_WIDTH = 16) (
   output wire rd_en, output wire [ADDR_WIDTH-1:0] rd_addr,
   input wire [31:0] rd_data
 );
+
   reg aw_full, w_full;
+
   assign s_axi_awready = resetn && !aw_full && !s_axi_bvalid;
   assign s_axi_wready = resetn && !w_full && !s_axi_bvalid;
   assign s_axi_arready = resetn && !s_axi_rvalid;
@@ -25,24 +28,41 @@ module axi_lite_regs #(parameter ADDR_WIDTH = 16) (
   assign wr_en = aw_full && w_full && !s_axi_bvalid;
   assign rd_en = s_axi_arvalid && s_axi_arready;
   assign rd_addr = s_axi_araddr;
+
   always @(posedge clk) begin
     if (!resetn) begin
-      aw_full <= 0; w_full <= 0;
-      s_axi_bvalid <= 0; s_axi_rvalid <= 0;
-      wr_addr <= 0; wr_data <= 0; wr_strb <= 0; s_axi_rdata <= 0;
+      aw_full <= 0;
+      w_full <= 0;
+      s_axi_bvalid <= 0;
+      s_axi_rvalid <= 0;
+      wr_addr <= 0;
+      wr_data <= 0;
+      wr_strb <= 0;
+      s_axi_rdata <= 0;
     end else begin
       if (s_axi_awvalid && s_axi_awready) begin
-        aw_full <= 1; wr_addr <= s_axi_awaddr;
+        aw_full <= 1;
+        wr_addr <= s_axi_awaddr;
       end
       if (s_axi_wvalid && s_axi_wready) begin
-        w_full <= 1; wr_data <= s_axi_wdata; wr_strb <= s_axi_wstrb;
+        w_full <= 1;
+        wr_data <= s_axi_wdata;
+        wr_strb <= s_axi_wstrb;
       end
       if (wr_en) begin
-        aw_full <= 0; w_full <= 0; s_axi_bvalid <= 1;
-      end else if (s_axi_bready) s_axi_bvalid <= 0;
+        aw_full <= 0;
+        w_full <= 0;
+        s_axi_bvalid <= 1;
+      end else if (s_axi_bready) begin
+        s_axi_bvalid <= 0;
+      end
       if (rd_en) begin
-        s_axi_rdata <= rd_data; s_axi_rvalid <= 1;
-      end else if (s_axi_rready) s_axi_rvalid <= 0;
+        s_axi_rdata <= rd_data;
+        s_axi_rvalid <= 1;
+      end else if (s_axi_rready) begin
+        s_axi_rvalid <= 0;
+      end
     end
   end
+
 endmodule

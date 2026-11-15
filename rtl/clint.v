@@ -1,4 +1,5 @@
 // Standard single-hart platform peripheral; addresses are relative to the AXI segment.
+
 module clint (
   (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk CLK",
      X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF S_AXI, ASSOCIATED_RESET resetn" *)
@@ -42,13 +43,16 @@ module clint (
   (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 S_AXI RREADY" *)
   input wire s_axi_rready
 );
+
   wire wr_en, rd_en;
   wire [15:0] wr_addr, rd_addr;
   wire [31:0] wr_data;
   wire [3:0] wr_strb;
   reg [31:0] rd_data;
+
   axi_lite_regs #(.ADDR_WIDTH(16)) bus (
     .clk(clk), .resetn(resetn),
+
     .s_axi_awaddr(s_axi_awaddr),
     .s_axi_awvalid(s_axi_awvalid),
     .s_axi_awready(s_axi_awready),
@@ -66,6 +70,7 @@ module clint (
     .s_axi_rresp(s_axi_rresp),
     .s_axi_rvalid(s_axi_rvalid),
     .s_axi_rready(s_axi_rready),
+
     .wr_en(wr_en), .wr_addr(wr_addr), .wr_data(wr_data), .wr_strb(wr_strb),
     .rd_en(rd_en), .rd_addr(rd_addr), .rd_data(rd_data)
   );
@@ -73,21 +78,26 @@ module clint (
   reg msip;
   reg [63:0] mtimecmp;
   assign irq_soft = msip;
+
   // The timer interrupt reflects mtime/mtimecmp with one cycle of latency.
   // This also keeps its comparator out of the CPU's trap-selection path.
   always @(posedge clk) begin
     if (!resetn) irq_timer <= 0;
     else irq_timer <= rtc_time >= mtimecmp;
   end
+
   integer b;
+
   always @(posedge clk) begin
     if (!resetn) begin
-      msip <= 0; rtc_time <= 0; mtimecmp <= 64'hffffffffffffffff;
+      msip <= 0;
+      rtc_time <= 0;
+      mtimecmp <= 64'hffffffffffffffff;
     end else begin
       rtc_time <= rtc_time + 1'b1;
       if (wr_en) begin
         if (wr_addr == 16'h0000 && wr_strb[0]) msip <= wr_data[0];
-        for (b=0; b<4; b=b+1) if (wr_strb[b]) begin
+        for (b = 0; b < 4; b = b + 1) if (wr_strb[b]) begin
           case (wr_addr)
             16'h4000: mtimecmp[b*8 +: 8] <= wr_data[b*8 +: 8];
             16'h4004: mtimecmp[32+b*8 +: 8] <= wr_data[b*8 +: 8];
@@ -99,7 +109,8 @@ module clint (
       end
     end
   end
-  always @* begin
+
+  always @(*) begin
     rd_data = 0;
     case (rd_addr)
       16'h0000: rd_data = {31'b0, msip};
@@ -110,4 +121,5 @@ module clint (
       default: ;
     endcase
   end
+
 endmodule
