@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Validate a Fuxi Flash image and write its SD flasher length/SHA-256 sidecar."""
+
 import argparse
 import hashlib
 from pathlib import Path
@@ -31,9 +32,11 @@ def main():
     p.add_argument('flash', type=Path)
     p.add_argument('--output', type=Path, help='default: input path with .meta suffix')
     a = p.parse_args()
+
     output = a.output or a.flash.with_suffix('.meta')
     if output.resolve() == a.flash.resolve():
         p.error('metadata output must differ from the Flash image')
+
     output.write_text(make_metadata(a.flash.read_bytes()))
     print(output)
 

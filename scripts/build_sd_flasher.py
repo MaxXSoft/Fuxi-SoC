@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build a PS-only ZedBoard SD maintenance shell using upstream U-Boot SPL."""
+
 import argparse
 import os
 from pathlib import Path
@@ -21,7 +22,7 @@ def config_values(path):
 
 def check_config(path):
     values = config_values(path)
-    required = config_values(ROOT/'software/flasher/zedboard.config')
+    required = config_values(ROOT / 'software/flasher/zedboard.config')
     required.update({
         'CONFIG_SPL': 'y', 'CONFIG_SPL_MMC': 'y', 'CONFIG_SPL_FS_FAT': 'y',
         'CONFIG_SPL_FS_LOAD_PAYLOAD_NAME': '"u-boot.img"',
@@ -45,28 +46,35 @@ def main():
     p.add_argument('--cross-compile', default='arm-none-eabi-')
     p.add_argument('--jobs', type=int, default=min(os.cpu_count() or 1, 8))
     a = p.parse_args()
-    source = ROOT/'third_party/u-boot'
-    if not (source/'include/ctype.h').is_symlink():
+
+    source = ROOT / 'third_party/u-boot'
+    if not (source / 'include/ctype.h').is_symlink():
         raise RuntimeError('U-Boot requires real symlinks; check out the submodule '
                            'with git core.symlinks=true before syncing it')
-    out = ROOT/'build/sd-flasher/u-boot'
+
+    out = ROOT / 'build/sd-flasher/u-boot'
     out.mkdir(parents=True, exist_ok=True)
+
     env = os.environ.copy()
     env.update(ARCH='arm', CROSS_COMPILE=a.cross_compile, DEVICE_TREE='zynq-zed',
                KBUILD_BUILD_USER='fuxi', KBUILD_BUILD_HOST='builder',
                # Stable build timestamp; this is the pinned v2026.04 commit date.
                SOURCE_DATE_EPOCH='1775498358', LOCALVERSION='')
+
     make = ['make', '-C', str(source), f'O={out}']
     subprocess.run(make + ['xilinx_zynq_virt_defconfig'], env=env, check=True)
-    subprocess.run(['bash', str(source/'scripts/kconfig/merge_config.sh'),
-                    '-m', '-O', str(out), str(out/'.config'),
-                    str(ROOT/'software/flasher/zedboard.config')],
+    subprocess.run(['bash', str(source / 'scripts/kconfig/merge_config.sh'),
+                    '-m', '-O', str(out), str(out / '.config'),
+                    str(ROOT / 'software/flasher/zedboard.config')],
                    cwd=out, env=env, check=True)
     subprocess.run(make + ['olddefconfig'], env=env, check=True)
-    check_config(out/'.config')
+
+    check_config(out / '.config')
+
     subprocess.run(make + [f'-j{a.jobs}', 'all'], env=env, check=True)
-    subprocess.run([str(out/'tools/mkimage'), '-l', str(out/'spl/boot.bin')], check=True)
-    subprocess.run([str(out/'tools/mkimage'), '-l', str(out/'u-boot.img')], check=True)
+    subprocess.run([str(out / 'tools/mkimage'), '-l', str(out / 'spl/boot.bin')], check=True)
+    subprocess.run([str(out / 'tools/mkimage'), '-l', str(out / 'u-boot.img')], check=True)
+
     print(f'Raw SPL image: {out}/spl/boot.bin (package before copying to SD)')
     print(f'SD second stage: {out}/u-boot.img (also required)')
 

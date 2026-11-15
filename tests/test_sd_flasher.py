@@ -3,6 +3,7 @@
 
 The command stubs exercise the script's shell control flow, not Zynq hardware.
 """
+
 import os
 import hashlib
 from pathlib import Path
@@ -13,7 +14,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT/'scripts'))
+sys.path.insert(0, str(ROOT / 'scripts'))
 from flash_metadata import check_zynq_image, make_metadata
 from package_sd_flasher import prepare_spl
 
@@ -28,16 +29,18 @@ def image():
 
 class PackageTests(unittest.TestCase):
     def test_metadata_cli_needs_only_python(self):
-        out = ROOT/'build/tests/sd-flasher'
+        out = ROOT / 'build/tests/sd-flasher'
         out.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=out) as temp:
-            flash = Path(temp)/'flash.bin'
+            flash = Path(temp) / 'flash.bin'
             flash.write_bytes(image())
-            result = subprocess.run([sys.executable, str(ROOT/'scripts/flash_metadata.py'),
+
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/flash_metadata.py'),
                                      str(flash)], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(flash.with_suffix('.meta').read_text(), make_metadata(image()))
-            result = subprocess.run([sys.executable, str(ROOT/'scripts/flash_metadata.py'),
+
+            result = subprocess.run([sys.executable, str(ROOT / 'scripts/flash_metadata.py'),
                                      str(flash), '--output', str(flash)], capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertEqual(flash.read_bytes(), image())
@@ -48,31 +51,36 @@ class PackageTests(unittest.TestCase):
         struct.pack_into('<I', data, 0x40, len(data))
         words = struct.unpack_from('<10I', data, 0x20)
         struct.pack_into('<I', data, 0x48, ~sum(words) & 0xffffffff)
+
         padded = prepare_spl(data)
         check_zynq_image(padded)
         self.assertEqual(padded[:len(data)], data)
         self.assertEqual(padded[len(data):], bytes(0x8c0))
         self.assertEqual(prepare_spl(padded), padded)
+
         with self.assertRaises(ValueError):
             prepare_spl(data[:-1])
 
     def test_reject_wrong_image_or_corrupt_header(self):
         good = image()
         check_zynq_image(good)
+
         for offset in (0x20, 0x24, 0x34, 0x48, 0x800000):
             with self.subTest(offset=offset):
                 bad = bytearray(good)
                 bad[offset] ^= 1
                 with self.assertRaises(ValueError):
                     make_metadata(bad)
+
         for bad in (good[:0x100], good[:0x800000], good + bytes(0x1000000)):
             with self.assertRaises(ValueError):
                 make_metadata(bad)
 
     def run_update(self, flash, metadata=None, fail=''):
         metadata = make_metadata(flash) if metadata is None else metadata
-        out = ROOT/'build/tests/sd-flasher'
+        out = ROOT / 'build/tests/sd-flasher'
         out.mkdir(parents=True, exist_ok=True)
+
         stubs = r'''
 setenv() { if test "$#" -eq 1; then unset "$1"; else printf -v "$1" '%s' "$2"; fi; }
 mmc() { echo "CALL mmc $*"; test "$FAIL" != "mmc-$1"; }
@@ -125,7 +133,8 @@ sf() { echo "CALL sf $*"; test "$FAIL" != "sf-$1"; }
 cmp.b() { echo "CALL cmp.b $*"; test "$FAIL" != compare; }
 trap 'test "$bootcmd" = unchanged || exit 99' EXIT
 '''
-        script = stubs + (ROOT/'software/flasher/flash-fuxi.cmd').read_text()
+        script = stubs + (ROOT / 'software/flasher/flash-fuxi.cmd').read_text()
+
         # Test an existing environment too: missing fields must not reuse it.
         initial = dict(os.environ, FAIL=fail, IMAGE_SIZE=f'{len(flash):x}',
                        IMAGE_HASH=hashlib.sha256(flash).hexdigest(),
@@ -135,8 +144,9 @@ trap 'test "$bootcmd" = unchanged || exit 99' EXIT
         for key, offset in [('HEADER0', 0x20), ('HEADER1', 0x24),
                             ('PAYLOAD0', 0x800000), ('PAYLOAD1', 0x800004)]:
             initial[key] = hex(struct.unpack_from('<I', flash, offset)[0])
+
         with tempfile.TemporaryDirectory(dir=out) as temp:
-            path = Path(temp)/'flash.meta'
+            path = Path(temp) / 'flash.meta'
             path.write_text(metadata)
             initial['META_PATH'] = str(path)
             return subprocess.run(['bash'], input=script,
@@ -147,6 +157,7 @@ trap 'test "$bootcmd" = unchanged || exit 99' EXIT
         second = first + b'another firmware version'
         third = bytearray(first)
         third[-1] ^= 1
+
         for flash in (first, second, third):
             with self.subTest(size=len(flash)):
                 meta = make_metadata(flash)
@@ -167,6 +178,7 @@ trap 'test "$bootcmd" = unchanged || exit 99' EXIT
                         'short-flash.meta', 'import', 'size-flash.bin', 'short-image',
                         'oversized-image', 'load-flash.bin', 'short-flash.bin',
                         'hash', 'sf-probe']
+
         for fail in [''] + before_write + ['sf-update', 'sf-read', 'compare']:
             with self.subTest(fail=fail):
                 result = self.run_update(image(), fail=fail)
@@ -190,7 +202,8 @@ trap 'test "$bootcmd" = unchanged || exit 99' EXIT
         meta = make_metadata(flash)
         changed = bytearray(flash)
         changed[-1] ^= 1
-        for invalid in ('', 'x'*513, meta.splitlines()[0] + '\n',
+
+        for invalid in ('', 'x' * 513, meta.splitlines()[0] + '\n',
                         meta.splitlines()[1] + '\n',
                         meta.replace('0x800080', '0x800081'),
                         meta.replace('0x800080', '*0x10000000'),
@@ -200,6 +213,7 @@ trap 'test "$bootcmd" = unchanged || exit 99' EXIT
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn('FAIL', result.stdout)
             self.assertNotIn('CALL sf ', result.stdout)
+
         # Even metadata with the correct digest cannot bless another image type.
         for offset in (0x20, 0x24, 0x800000, 0x800004):
             bad = bytearray(flash)
