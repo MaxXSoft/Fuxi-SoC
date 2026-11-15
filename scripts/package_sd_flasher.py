@@ -8,13 +8,31 @@ import os
 from pathlib import Path
 import shutil
 import struct
+from string import Template
 import subprocess
 import zipfile
 
 from build_sd_flasher import check_config
 from flash_metadata import check_zynq_image, make_metadata
+from image_layout import FLASH_BANK_SIZE, FLASH_MIN_SIZE, MAGIC, PAYLOAD_OFFSET
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def render_update_script():
+    # A distinct delimiter preserves U-Boot's ${variable} expansions verbatim.
+    class ScriptTemplate(Template):
+        delimiter = '@'
+
+    magic0, magic1 = struct.unpack('<2I', MAGIC)
+    values = {'FLASH_MIN_SIZE': f'0x{FLASH_MIN_SIZE:x}',
+              'FLASH_BANK_SIZE': f'0x{FLASH_BANK_SIZE:x}',
+              'PAYLOAD_MAGIC0_ADDRESS': f'0x{0x10000000 + PAYLOAD_OFFSET:08x}',
+              'PAYLOAD_MAGIC1_ADDRESS': f'0x{0x10000000 + PAYLOAD_OFFSET + 4:08x}',
+              'PAYLOAD_MAGIC0': f'0x{magic0:08x}',
+              'PAYLOAD_MAGIC1': f'0x{magic1:08x}'}
+    source = (ROOT / 'software/flasher/flash-fuxi.cmd.in').read_text()
+    return ScriptTemplate(source).substitute(values)
 
 
 def prepare_spl(data):
@@ -58,7 +76,7 @@ def main():
     (out / 'flash.bin').write_bytes(flash)
     (out / 'flash.meta').write_text(metadata)
 
-    shutil.copyfile(ROOT / 'software/flasher/flash-fuxi.cmd', out / 'flash-fuxi.cmd')
+    (out / 'flash-fuxi.cmd').write_text(render_update_script())
     env = dict(os.environ, SOURCE_DATE_EPOCH='1775498358')
     subprocess.run([str(uboot / 'tools/mkimage'), '-A', 'arm', '-T', 'script',
                     '-C', 'none', '-n', 'Fuxi QSPI update', '-d',

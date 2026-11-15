@@ -1,0 +1,13 @@
+{
+  "magic": "FUXISOC",
+  "version": 1,
+  "flash_bank_size": "0x01000000",
+  "payload_offset": "0x00800000",
+  "scratch_address": "0x87000000",
+  "scratch_size": "0x00800000",
+  "segments": [
+    {"name": "opensbi", "address": "0x80000000", "limit": "0x00400000"},
+    {"name": "kernel", "address": "0x80400000", "limit": "0x06c00000"},
+    {"name": "dtb", "address": "0x87e00000", "limit": "0x00100000"}
+  ]
+}

@@ -16,7 +16,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from flash_metadata import check_zynq_image, make_metadata
-from package_sd_flasher import prepare_spl
+from package_sd_flasher import prepare_spl, render_update_script
 from flasher_test_utils import image
 
 
@@ -126,7 +126,7 @@ sf() { echo "CALL sf $*"; test "$FAIL" != "sf-$1"; }
 cmp.b() { echo "CALL cmp.b $*"; test "$FAIL" != compare; }
 trap 'test "$bootcmd" = unchanged || exit 99' EXIT
 '''
-        script = stubs + (ROOT / 'software/flasher/flash-fuxi.cmd').read_text()
+        script = stubs + render_update_script()
 
         # Test an existing environment too: missing fields must not reuse it.
         initial = dict(os.environ, FAIL=fail, IMAGE_SIZE=f'{len(flash):x}',

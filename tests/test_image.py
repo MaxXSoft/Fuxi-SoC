@@ -2,7 +2,6 @@
 """Exercise the actual ROM C parser/decoder with packed and corrupt host images."""
 
 import ctypes
-import importlib.util
 import os
 from pathlib import Path
 import subprocess
@@ -11,9 +10,9 @@ import unittest
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('pack_image', ROOT / 'scripts/pack_image.py')
-packer = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(packer)
+sys.path.insert(0, str(ROOT / 'scripts'))
+import image_layout as layout
+import pack_image as packer
 
 
 class Segment(ctypes.Structure):
@@ -23,7 +22,7 @@ class Segment(ctypes.Structure):
 
 class Header(ctypes.Structure):
     _fields_ = [('magic', ctypes.c_char * 8), ('version', ctypes.c_uint32),
-                ('crc32', ctypes.c_uint32), ('segments', Segment * 3)]
+                ('crc32', ctypes.c_uint32), ('segments', Segment * len(layout.SEGMENTS))]
 
 
 class ImageTests(unittest.TestCase):
@@ -31,8 +30,10 @@ class ImageTests(unittest.TestCase):
     def setUpClass(cls):
         out = ROOT / 'build/tests'
         out.mkdir(parents=True, exist_ok=True)
+        layout.write_header(out / 'image_layout.h')
         library = out / ('image.dylib' if sys.platform == 'darwin' else 'image.so')
         subprocess.run([os.environ.get('HOST_CC', 'cc'), '-O2', '-shared', '-fPIC',
+                        '-I' + str(out),
                         '-I' + str(ROOT / 'third_party/lz4/lib'),
                         str(ROOT / 'software/bootrom/image.c'),
                         str(ROOT / 'third_party/lz4/lib/lz4.c'), '-o', str(library)], check=True)
@@ -73,8 +74,8 @@ class ImageTests(unittest.TestCase):
             self.assertEqual(output.raw, expected)
 
     def test_header_corruption(self):
-        for offset in range(88):
-            changed = bytearray(self.blob[:88])
+        for offset in range(layout.HEADER_SIZE):
+            changed = bytearray(self.blob[:layout.HEADER_SIZE])
             changed[offset] ^= 1
             h = Header.from_buffer_copy(changed)
             self.assertNotEqual(self.lib.image_validate(ctypes.byref(h)), 0)
@@ -102,7 +103,40 @@ class ImageTests(unittest.TestCase):
 
     def test_packer_rejects_overflow(self):
         with self.assertRaises(ValueError):
-            packer.pack([b'A', b'B' * 0x800000, b'C'], compress=False)
+            packer.pack([b'A', b'B' * layout.PAYLOAD_LIMIT, b'C'], compress=False)
+
+    def test_segment_limits_match_rom(self):
+        for index, limit in enumerate(layout.LIMITS):
+            with self.subTest(segment=index):
+                h = self.header()
+                h.segments[index].codec = 1
+                h.segments[index].unpacked_size = limit
+                self.refresh_crc(h)
+                self.assertEqual(self.lib.image_validate(ctypes.byref(h)), 0)
+                h.segments[index].unpacked_size += 1
+                self.refresh_crc(h)
+                self.assertNotEqual(self.lib.image_validate(ctypes.byref(h)), 0)
+                images = [b'A', b'B', b'C']
+                images[index] = bytes(limit + 1)
+                with self.assertRaises(ValueError):
+                    packer.pack(images, compress=False)
+
+    def test_payload_boundary_matches_rom(self):
+        # Fill the final byte of the payload allocation with an uncompressed DTB.
+        room = layout.PAYLOAD_LIMIT - layout.HEADER_SIZE
+        first = min(layout.LIMITS[0], room - 5) & ~3
+        images = [bytes(first), bytes(room - first - 4), b'DTB!']
+        blob = packer.pack(images, compress=False)
+        self.assertEqual(len(blob), layout.PAYLOAD_LIMIT)
+        h = Header.from_buffer_copy(blob)
+        self.assertEqual(self.lib.image_validate(ctypes.byref(h)), 0)
+        images[-1] += b'!'
+        with self.assertRaises(ValueError):
+            packer.pack(images, compress=False)
+        h.segments[-1].packed_size += 1
+        h.segments[-1].unpacked_size += 1
+        self.refresh_crc(h)
+        self.assertNotEqual(self.lib.image_validate(ctypes.byref(h)), 0)
 
 
 if __name__ == '__main__':

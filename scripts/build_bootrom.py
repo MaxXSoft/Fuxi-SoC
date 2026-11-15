@@ -7,6 +7,8 @@ from pathlib import Path
 import struct
 import subprocess
 
+from image_layout import write_header
+
 ROOT = Path(__file__).resolve().parents[1]
 
 p = argparse.ArgumentParser()
@@ -19,10 +21,11 @@ out = ROOT / 'build/bootrom'
 out.mkdir(parents=True, exist_ok=True)
 src = ROOT / 'software/bootrom'
 lz4 = ROOT / 'third_party/lz4/lib'
+write_header(out / 'image_layout.h')
 
 flags = ['-march=rv32imac_zicsr_zifencei', '-mabi=ilp32', '-Os', '-g', '-ffreestanding',
          '-fno-builtin', '-ffunction-sections', '-fdata-sections', '-fno-stack-protector',
-         '-Wall', '-Wextra', '-Werror', '-I' + str(src), '-I' + str(lz4),
+         '-Wall', '-Wextra', '-Werror', '-I' + str(src), '-I' + str(lz4), '-I' + str(out),
          '-DLZ4_FREESTANDING=1', '-DLZ4_memcpy=memcpy', '-DLZ4_memmove=memmove',
          '-DLZ4_memset=memset', '-include', str(src / 'memory.h')]
 if 'clang' in Path(a.cc).name:

@@ -6,6 +6,8 @@ import hashlib
 from pathlib import Path
 import struct
 
+from image_layout import FLASH_BANK_SIZE, FLASH_MIN_SIZE, MAGIC, PAYLOAD_OFFSET
+
 
 def check_zynq_image(data):
     if len(data) < 0x8c0:
@@ -19,10 +21,10 @@ def check_zynq_image(data):
 
 def make_metadata(flash):
     check_zynq_image(flash)
-    if not 0x800058 <= len(flash) <= 0x1000000:
+    if not FLASH_MIN_SIZE <= len(flash) <= FLASH_BANK_SIZE:
         raise ValueError('Fuxi Flash image must fit bank 0 and include the payload')
-    if flash[0x800000:0x800008] != b'FUXISOC\0':
-        raise ValueError('expected Fuxi payload at Flash offset 8 MiB')
+    if flash[PAYLOAD_OFFSET:PAYLOAD_OFFSET + len(MAGIC)] != MAGIC:
+        raise ValueError(f'expected Fuxi payload at Flash offset 0x{PAYLOAD_OFFSET:x}')
     return (f'fuxi_flash_size=0x{len(flash):x}\n'
             f'fuxi_flash_sha256={hashlib.sha256(flash).hexdigest()}\n')
 

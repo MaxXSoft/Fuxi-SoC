@@ -15,6 +15,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from flash_metadata import make_metadata
+from package_sd_flasher import render_update_script
 from flasher_test_utils import image
 
 
@@ -29,7 +30,7 @@ def main():
     work.mkdir(parents=True, exist_ok=True)
     uboot = args.uboot.resolve()
     mkimage = (args.mkimage or uboot.parent / 'tools/mkimage').resolve()
-    source = (ROOT / 'software/flasher/flash-fuxi.cmd').read_text()
+    source = render_update_script()
 
     original = image()
     base_meta = make_metadata(original)

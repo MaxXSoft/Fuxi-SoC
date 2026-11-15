@@ -10,11 +10,10 @@ import subprocess
 import sys
 import zlib
 
+from image_layout import (ADDRESSES, HEADER_SIZE, LIMITS, MAGIC, PAYLOAD_LIMIT,
+                          PAYLOAD_OFFSET, SCRATCH_SIZE, VERSION)
+
 ROOT = Path(__file__).resolve().parents[1]
-ADDRESSES = (0x80000000, 0x80400000, 0x87e00000)
-LIMITS = (0x400000, 0x06c00000, 0x100000)
-HEADER_SIZE = 88
-PAYLOAD_LIMIT = 0x800000
 
 
 def codec_library():
@@ -34,6 +33,9 @@ def codec_library():
 
 
 def pack(images, compress=True):
+    images = tuple(images)
+    if len(images) != len(ADDRESSES):
+        raise ValueError(f'exactly {len(ADDRESSES)} images are required')
     lib = codec_library() if compress else None
     chunks = []
     records = []
@@ -51,6 +53,8 @@ def pack(images, compress=True):
             if size < len(data):
                 packed, codec = buf.raw[:size], 1
 
+        if len(packed) > SCRATCH_SIZE:
+            raise ValueError(f'segment {index}: packed data exceeds the scratch buffer')
         aligned = (offset + 3) & ~3
         chunks.append(bytes(aligned - offset))
         offset = aligned
@@ -59,12 +63,10 @@ def pack(images, compress=True):
         chunks.append(packed)
         offset += len(packed)
 
-    if len(records) != 3:
-        raise ValueError('exactly three images are required')
     if offset > PAYLOAD_LIMIT:
-        raise ValueError('payload exceeds Flash bank 0 allocation (8 MiB)')
+        raise ValueError(f'payload exceeds Flash bank 0 allocation ({PAYLOAD_LIMIT} bytes)')
 
-    header = b'FUXISOC\0' + struct.pack('<2I', 1, 0) + b''.join(records)
+    header = MAGIC + struct.pack('<2I', VERSION, 0) + b''.join(records)
     header = header[:12] + struct.pack('<I', zlib.crc32(header)) + header[16:]
     return header + b''.join(chunks)
 
@@ -75,7 +77,8 @@ def main():
     p.add_argument('--linux', type=Path, required=True, help='uncompressed RISC-V Image')
     p.add_argument('--dtb', type=Path, required=True)
     p.add_argument('--output', type=Path, default=ROOT / 'build/payload.bin')
-    p.add_argument('--raw', action='store_true', help='disable LZ4 (still subject to 8 MiB limit)')
+    p.add_argument('--raw', action='store_true',
+                   help=f'disable LZ4 (still subject to {PAYLOAD_LIMIT} byte payload limit)')
     a = p.parse_args()
 
     images = [path.read_bytes() for path in (a.opensbi, a.linux, a.dtb)]
@@ -83,7 +86,7 @@ def main():
 
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_bytes(result)
-    print(f'{a.output}: {len(result)} bytes; Flash offset 0x00800000')
+    print(f'{a.output}: {len(result)} bytes; Flash offset 0x{PAYLOAD_OFFSET:08x}')
 
 
 if __name__ == '__main__':

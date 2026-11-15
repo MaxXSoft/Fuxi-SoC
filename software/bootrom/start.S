@@ -1,3 +1,5 @@
+#include "image_layout.h"
+
   .section .text.start, "ax"
 
   .global _start
@@ -34,8 +36,8 @@ boot_trap:
 enter_opensbi:
   fence rw, rw
   fence.i
-  li t0, 0x80000000
+  li t0, OPENSBI_ADDRESS
   csrr a0, mhartid
-  li a1, 0x87e00000
+  li a1, DTB_ADDRESS
   li a2, 0
   jr t0

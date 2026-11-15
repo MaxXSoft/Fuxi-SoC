@@ -14,10 +14,8 @@ uint32_t image_crc32(const void *data, size_t size) {
 }
 
 int image_validate(const struct image_header *h) {
-  static const uint32_t addresses[] = {OPENSBI_ADDRESS, KERNEL_ADDRESS,
-                                       DTB_ADDRESS};
-  static const uint32_t limits[] = {0x400000, SCRATCH_ADDRESS - KERNEL_ADDRESS,
-                                    0x100000};
+  static const uint32_t addresses[] = IMAGE_ADDRESSES;
+  static const uint32_t limits[] = IMAGE_LIMITS;
   static const char magic[8] = IMAGE_MAGIC;
   struct image_header copy = *h;
   for (unsigned i = 0; i < sizeof(magic); ++i)

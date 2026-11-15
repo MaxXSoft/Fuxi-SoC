@@ -78,6 +78,15 @@ AXI transactions must first be quiesced for a supported warm-reset design.
 
 ## Flash and DDR image layout
 
+`software/bootrom/image_layout.json` is the shared definition of image magic,
+version, segment destinations/limits, scratch storage and Flash allocation.
+Host tools read it through `scripts/image_layout.py`; Boot ROM builds and host
+decoder tests generate their own `image_layout.h` under `build/` for C and
+assembly. The SD packager renders the same layout into `flash-fuxi.cmd` from
+`software/flasher/flash-fuxi.cmd.in`. Generated headers/scripts are not checked in.
+Layout changes must also respect the platform mappings, Linux reservations and
+external OpenSBI build settings described here.
+
 The first 16 MiB of the 32 MiB Flash is used:
 
 | Flash offset | Contents |

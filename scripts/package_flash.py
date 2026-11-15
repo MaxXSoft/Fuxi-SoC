@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 
 from flash_metadata import make_metadata
+from image_layout import PAYLOAD_LIMIT, PAYLOAD_OFFSET
 
 root = Path(__file__).resolve().parents[1]
 
@@ -28,13 +29,13 @@ subprocess.run([a.bootgen, '-arch', 'zynq', '-image', 'boot.bif', '-o', 'BOOT.BI
 
 boot = (out / 'BOOT.BIN').read_bytes()
 payload = a.payload.read_bytes()
-if len(boot) > 0x800000 or len(payload) > 0x800000:
-    raise SystemExit('BOOT.BIN or payload overlaps its 8 MiB Flash allocation')
+if len(boot) > PAYLOAD_OFFSET or len(payload) > PAYLOAD_LIMIT:
+    raise SystemExit('BOOT.BIN or payload exceeds its Flash allocation')
 
-flash = boot + b'\xff' * (0x800000 - len(boot)) + payload
+flash = boot + b'\xff' * (PAYLOAD_OFFSET - len(boot)) + payload
 metadata = make_metadata(flash)
 (out / 'flash.bin').write_bytes(flash)
 (out / 'flash.meta').write_text(metadata)
 
-print(f'{out}/flash.bin: {0x800000 + len(payload)} bytes, program at Flash offset 0')
+print(f'{out}/flash.bin: {len(flash)} bytes, program at Flash offset 0')
 print(f'{out}/flash.meta: copy alongside flash.bin for the SD flasher')

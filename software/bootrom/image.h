@@ -4,16 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define IMAGE_MAGIC "FUXISOC"
-#define IMAGE_VERSION 1u
-#define IMAGE_SEGMENTS 3u
-#define FLASH_PAYLOAD_OFFSET 0x00800000u
-#define FLASH_PAYLOAD_LIMIT 0x00800000u
-#define SCRATCH_ADDRESS 0x87000000u
-#define SCRATCH_SIZE 0x00800000u
-#define OPENSBI_ADDRESS 0x80000000u
-#define KERNEL_ADDRESS 0x80400000u
-#define DTB_ADDRESS 0x87e00000u
+#include "image_layout.h"
 
 struct image_segment {
   uint32_t address, offset, packed_size, unpacked_size, crc32, codec;
@@ -25,7 +16,7 @@ struct image_header {
   struct image_segment segments[IMAGE_SEGMENTS];
 };
 
-_Static_assert(sizeof(struct image_header) == 88, "image ABI");
+_Static_assert(sizeof(struct image_header) == IMAGE_HEADER_SIZE, "image ABI");
 
 uint32_t image_crc32(const void *data, size_t size);
 int image_validate(const struct image_header *header);

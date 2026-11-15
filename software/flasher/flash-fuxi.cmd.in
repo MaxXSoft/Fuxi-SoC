@@ -18,14 +18,14 @@ if mmc dev 0 && mmc rescan; then
             setenv fuxi_update_error META_IMPORT
             if env import -t -d 0x02100000 ${fuxi_meta_size} fuxi_flash_size fuxi_flash_sha256; then
                 setenv fuxi_update_error INPUT_SIZE
-                if size mmc 0:1 flash.bin && itest ${filesize} -ge 0x800058 && itest ${filesize} -le 0x1000000 && test "${fuxi_flash_size}" = "0x${filesize}"; then
+                if size mmc 0:1 flash.bin && itest ${filesize} -ge @{FLASH_MIN_SIZE} && itest ${filesize} -le @{FLASH_BANK_SIZE} && test "${fuxi_flash_size}" = "0x${filesize}"; then
                     setenv fuxi_image_size ${filesize}
                     setenv fuxi_update_error LOAD
                     if fatload mmc 0:1 0x10000000 flash.bin ${fuxi_image_size} && itest ${filesize} == ${fuxi_image_size}; then
                         setenv fuxi_update_error INPUT_HASH
                         if hash -v sha256 0x10000000 ${fuxi_image_size} fuxi_flash_sha256; then
                             setenv fuxi_update_error INPUT_HEADER
-                            if itest.l *0x10000020 == 0xaa995566 && itest.l *0x10000024 == 0x584c4e58 && itest.l *0x10800000 == 0x49585546 && itest.l *0x10800004 == 0x00434f53; then
+                            if itest.l *0x10000020 == 0xaa995566 && itest.l *0x10000024 == 0x584c4e58 && itest.l *@{PAYLOAD_MAGIC0_ADDRESS} == @{PAYLOAD_MAGIC0} && itest.l *@{PAYLOAD_MAGIC1_ADDRESS} == @{PAYLOAD_MAGIC1}; then
                                 setenv fuxi_update_error PROBE
                                 if sf probe 0:0; then
                                     echo Writing Fuxi image to QSPI offset zero
