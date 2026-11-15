@@ -83,12 +83,13 @@ def main():
                    env=env, check=True)
 
     shutil.copyfile(ROOT / 'docs/sd-flasher.md', out / 'README.md')
+    shutil.copyfile(ROOT / 'LICENSE', out / 'GPL-3.0.txt')
     shutil.copyfile(uboot / '.config', out / 'u-boot.config')
     shutil.copyfile(ROOT / 'third_party/u-boot/Licenses/README', out / 'U-Boot-LICENSES.txt')
     shutil.copyfile(ROOT / 'third_party/u-boot/Licenses/gpl-2.0.txt', out / 'GPL-2.0.txt')
 
     names = ['BOOT.BIN', 'u-boot.img', 'flash.bin', 'flash.meta', 'flash-fuxi.cmd',
-             'flash-fuxi.scr', 'README.md', 'u-boot.config',
+             'flash-fuxi.scr', 'README.md', 'GPL-3.0.txt', 'u-boot.config',
              'U-Boot-LICENSES.txt', 'GPL-2.0.txt']
     hashes = {n: hashlib.sha256((out / n).read_bytes()).hexdigest() for n in names}
     (out / 'SHA256SUMS').write_text(''.join(f'{v}  {n}\n' for n, v in hashes.items()))

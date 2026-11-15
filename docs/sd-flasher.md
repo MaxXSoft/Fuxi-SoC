@@ -178,6 +178,20 @@ the end declared in its BootROM load-length field. This accommodates v2026.04
 `mkimage` counting the header in that length, without relying on an SD read past
 EOF. Both the header checksum and the declared load bounds are checked.
 
+## License
+
+Copyright (C) 2026 MaxXing.
+
+Fuxi-SoC's original code, including the `flash-fuxi.cmd` update script and its
+packaged `flash-fuxi.scr` form, is licensed under the GNU General Public License,
+version 3 only (`GPL-3.0-only`). The SD package includes the full license text
+in `GPL-3.0.txt`.
+
+Third-party projects and dependencies retain their own licenses. The SD
+bootloader's terms are described in `U-Boot-LICENSES.txt` and `GPL-2.0.txt`;
+components included in `flash.bin` retain their respective licenses and notices.
+The Fuxi-SoC license does not replace those terms.
+
 ## References
 
 - [U-Boot Zynq board and SD boot documentation](https://docs.u-boot.org/en/latest/board/xilinx/zynq.html)

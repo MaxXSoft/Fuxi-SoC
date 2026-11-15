@@ -34,8 +34,17 @@ from Flash into DDR.
 
 `third_party/fuxi` supplies the core, `third_party/embeddedsw` the AMD Zynq FSBL
 and standalone drivers, `third_party/lz4` the boot image codec, and
-`third_party/u-boot` the optional SD maintenance bootloader. Each dependency
-retains its own license. This repository's original code is licensed under MIT.
+`third_party/u-boot` the optional SD maintenance bootloader.
 
 For the corresponding Linux build, please check
 [Fuxi-Linux](https://github.com/MaxXSoft/Fuxi-Linux).
+
+## License
+
+Copyright (C) 2026 MaxXing.
+
+This project's original code is licensed under the GNU General Public License,
+version 3 only (`GPL-3.0-only`). See [LICENSE](LICENSE) for the full text.
+
+Third-party projects and dependencies retain their own licenses. Refer to each
+project's license files and source notices for its terms.
