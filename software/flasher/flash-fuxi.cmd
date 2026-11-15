@@ -4,9 +4,11 @@
 # and loses nested/expanded exit statuses; keep the literal exit 1 at top level.
 # All accesses use the actual SD size; the imported size is compared as text.
 # hash takes a variable NAME so missing/short digests fail instead of persisting.
+
 setenv fuxi_flash_size
 setenv fuxi_flash_sha256
 setenv fuxi_update_error MMC
+
 if mmc dev 0 && mmc rescan; then
     setenv fuxi_update_error META_SIZE
     if size mmc 0:1 flash.meta && itest ${filesize} -gt 0 && itest ${filesize} -le 0x200; then
@@ -43,10 +45,12 @@ if mmc dev 0 && mmc rescan; then
         fi
     fi
 fi
+
 if test -z "${fuxi_update_error}"; then
     echo FUXI_FLASH_VERIFY_PASS
     echo Power off, select QSPI boot, then power on
     exit 0
 fi
+
 echo FUXI_FLASH_${fuxi_update_error}_FAIL
 exit 1
