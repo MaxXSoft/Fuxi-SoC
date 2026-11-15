@@ -4,7 +4,6 @@
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
 import struct
@@ -12,7 +11,7 @@ from string import Template
 import subprocess
 import zipfile
 
-from build_sd_flasher import check_config
+from build_sd_flasher import build_environment, check_config
 from flash_metadata import check_zynq_image, make_metadata
 from image_layout import FLASH_BANK_SIZE, FLASH_MIN_SIZE, MAGIC, PAYLOAD_OFFSET
 
@@ -77,7 +76,7 @@ def main():
     (out / 'flash.meta').write_text(metadata)
 
     (out / 'flash-fuxi.cmd').write_text(render_update_script())
-    env = dict(os.environ, SOURCE_DATE_EPOCH='1775498358')
+    env = build_environment()
     subprocess.run([str(uboot / 'tools/mkimage'), '-A', 'arm', '-T', 'script',
                     '-C', 'none', '-n', 'Fuxi QSPI update', '-d',
                     str(out / 'flash-fuxi.cmd'), str(out / 'flash-fuxi.scr')],

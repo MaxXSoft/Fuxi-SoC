@@ -136,7 +136,15 @@ distribution with a new Fuxi image, without rebuilding U-Boot:
 make sd-flasher-package FLASH_IMAGE=/absolute/path/to/flash.bin
 ```
 
-This refreshes `flash.meta` and the ZIP checksums. The script's contents do not
+Both build and packaging scripts honor `SOURCE_DATE_EPOCH` from the environment.
+If unset, they share the pinned U-Boot v2026.04 commit timestamp (`1775498358`)
+from `scripts/build_sd_flasher.py`; update that default when updating the pinned
+U-Boot revision. The default also works in source copies without `.git`.
+For example, use `SOURCE_DATE_EPOCH=1800000000 make sd-flasher` to select another
+timestamp, and use the same value when later repackaging. This controls U-Boot
+and mkimage timestamps; ZIP entry timestamps still come from filesystem mtimes.
+
+Packaging refreshes `flash.meta` and the ZIP checksums. The script's contents do not
 change with the image. The generated manifest records package checksums, resolved
 U-Boot version, and the lack of physical-board validation. `make test-sd-flasher`
 checks package validation, reuse across images, and update failure handling

@@ -9,6 +9,13 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def build_environment():
+    env = os.environ.copy()
+    # Default to the pinned U-Boot v2026.04 commit date, including without .git.
+    env.setdefault('SOURCE_DATE_EPOCH', '1775498358')
+    return env
+
+
 def config_values(path):
     values = {}
     for line in path.read_text().splitlines():
@@ -55,11 +62,10 @@ def main():
     out = ROOT / 'build/sd-flasher/u-boot'
     out.mkdir(parents=True, exist_ok=True)
 
-    env = os.environ.copy()
+    env = build_environment()
     env.update(ARCH='arm', CROSS_COMPILE=a.cross_compile, DEVICE_TREE='zynq-zed',
                KBUILD_BUILD_USER='fuxi', KBUILD_BUILD_HOST='builder',
-               # Stable build timestamp; this is the pinned v2026.04 commit date.
-               SOURCE_DATE_EPOCH='1775498358', LOCALVERSION='')
+               LOCALVERSION='')
 
     make = ['make', '-C', str(source), f'O={out}']
     subprocess.run(make + ['xilinx_zynq_virt_defconfig'], env=env, check=True)
