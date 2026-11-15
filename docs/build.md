@@ -18,6 +18,9 @@ Tcl. The 1.4 preset is the source for DDR/MIO configuration; do not substitute a
 preset for another board. The script asserts reset polarity after propagation.
 On Ubuntu, Vivado 2025.2 can spill multiline OS metadata into generated HDL
 headers. `sanitize_vivado_headers.py` repairs only those comments automatically.
+`PYTHON=/path/to/python3` selects the interpreter for both the Makefile's Python
+commands and this Tcl-invoked helper. Standalone Tcl invocation defaults to
+`python3` unless `PYTHON` is set in the environment.
 
 ## Prepare and test
 
@@ -41,20 +44,21 @@ completion/retrigger and reserved registers. Host tests compile the **actual ROM
 C decoder** and round-trip raw/LZ4 images, check every header byte for corruption,
 and reject malformed blocks and out-of-range segments.
 
-## Remote Vivado build
+## Local Vivado build
 
-Use rsync, including submodule working trees, rather than copying a Vivado
-project. `REMOTE_DIR` is the path **on the SSH host**, not necessarily the path
-inside its Docker container:
+On x86-64 Linux, configure the installed Vivado environment and build directly:
 
 ```sh
-make sync REMOTE=my-server REMOTE_DIR=/host/path/Fuxi-SoC
-ssh my-server 'docker exec my-container bash -lc "source /opt/AMD/2025.2/Vivado/settings64.sh; cd /container/path/Fuxi-SoC; make fpga"'
+source /path/to/Vivado/settings64.sh
+make fpga RISCV_CC=clang RISCV_OBJCOPY=llvm-objcopy RISCV_LD=ld.lld
 ```
 
-`make sync` does not delete remote files. It excludes `.git`, sbt targets and
-generated build outputs, and transfers the prepared portable RTL/ROM inputs separately.
-`make fpga` creates a fresh project, validates the block design, synthesizes,
+`make project` and `make fpga` generate the RTL and Boot ROM locally by default;
+no remote server or container is required. `make prepare` remains useful for
+preparing portable inputs (including the DTB) without running Vivado. The default
+`make` target is still `prepare`.
+
+`make fpga` then creates a fresh project, validates the block design, synthesizes,
 places, routes, writes the bitstream and exports the hardware platform.
 Implementation uses Vivado's `Performance_ExplorePostRoutePhysOpt` strategy:
 Explore placement/routing followed by physical optimization using routed
@@ -83,6 +87,33 @@ Outputs:
 The reports are evidence of that build, not repository inputs. A bitstream may
 be generated even when timing fails: inspect WNS/TNS and hold results before
 using it. `make fpga` does not program a board or change Flash.
+
+## Optional remote Vivado build
+
+Inputs can also be prepared on another machine, such as an ARM64 Mac. Use rsync,
+including submodule working trees, to transfer the sources and portable inputs:
+
+```sh
+make prepare RISCV_CC=clang RISCV_OBJCOPY=llvm-objcopy RISCV_LD=ld.lld
+make sync REMOTE=my-server REMOTE_DIR=/host/path/Fuxi-SoC
+ssh my-server 'bash -lc "source /path/to/Vivado/settings64.sh; cd /host/path/Fuxi-SoC; make fpga PREPARED_INPUTS=1"'
+```
+
+`PREPARED_INPUTS=1` uses existing RTL/ROM files without invoking sbt or the RISC-V
+toolchain. Both inputs must exist and must match the intended source/configuration;
+rerun `make prepare` and `make sync` after changing them. This mode also works for
+already prepared inputs on a single machine.
+
+If Vivado is installed inside a container, the final command can instead be:
+
+```sh
+ssh my-server 'docker exec my-container bash -lc "source /opt/AMD/2025.2/Vivado/settings64.sh; cd /container/path/Fuxi-SoC; make fpga PREPARED_INPUTS=1"'
+```
+
+`REMOTE_DIR` is the path on the SSH host, which may differ from the path inside
+the container. `make sync` does not delete remote files. It excludes `.git`, sbt
+targets and generated build outputs, and transfers the prepared portable RTL/ROM
+inputs separately.
 
 ## FSBL and Flash image
 

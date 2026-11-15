@@ -1,7 +1,9 @@
 SHELL := /bin/bash
 ROOT := $(abspath .)
 PYTHON ?= python3
+export PYTHON
 VIVADO ?= vivado
+PREPARED_INPUTS ?= 0
 SBT ?= sbt
 VERILATOR ?= verilator
 DTC ?= dtc
@@ -39,8 +41,11 @@ test-peripherals:
 test-image:
 	$(PYTHON) tests/test_image.py
 
-# Prepare locally, then rsync the sources and generated portable inputs to a
-# Linux host with Vivado. These targets deliberately do not invoke sbt or LLVM.
+# Use PREPARED_INPUTS=1 when RTL/ROM inputs were prepared on another machine.
+ifneq ($(PREPARED_INPUTS),1)
+project: rtl bootrom
+endif
+
 project:
 	test -f build/fuxi/Fuxi.v && test -f build/bootrom/bootrom.mem
 	$(VIVADO) -mode batch -source scripts/create_project.tcl -log build/create.log -journal build/create.jou

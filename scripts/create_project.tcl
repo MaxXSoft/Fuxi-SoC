@@ -1,6 +1,11 @@
 # Run from any working directory: vivado -mode batch -source scripts/create_project.tcl
 
 set root [file normalize [file join [file dirname [info script]] ..]]
+set python python3
+if {[info exists ::env(PYTHON)] && $::env(PYTHON) ne ""} {
+ set python $::env(PYTHON)
+}
+
 set out [file join $root build vivado]
 create_project -force fuxi_zedboard $out -part xc7z020clg484-1
 
@@ -119,7 +124,7 @@ generate_target all $bd
 set wrapper [make_wrapper -files $bd -top]
 add_files $wrapper
 set_property top soc_wrapper [current_fileset]
-puts [exec python3 $root/scripts/sanitize_vivado_headers.py $out]
+puts [exec $python $root/scripts/sanitize_vivado_headers.py $out]
 update_compile_order -fileset sources_1
 set_property top soc_wrapper [current_fileset]
 

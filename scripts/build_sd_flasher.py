@@ -50,7 +50,7 @@ def main():
     source = ROOT / 'third_party/u-boot'
     if not (source / 'include/ctype.h').is_symlink():
         raise RuntimeError('U-Boot requires real symlinks; check out the submodule '
-                           'with git core.symlinks=true before syncing it')
+                           'with git core.symlinks=true')
 
     out = ROOT / 'build/sd-flasher/u-boot'
     out.mkdir(parents=True, exist_ok=True)

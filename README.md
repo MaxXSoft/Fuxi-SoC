@@ -15,17 +15,21 @@ The PS initializes DDR/MIO/clocks, configures the PL, enables QSPI linear reads,
 and releases Fuxi. ARM then parks. Fuxi loads OpenSBI, Linux and its device tree
 from Flash into DDR. There is no runtime ARM monitor.
 
-- [Build, test, rsync and firmware packaging](docs/build.md)
+- [Build, test and firmware packaging](docs/build.md)
 - [Address map, interrupts and boot/software contract](docs/architecture.md)
 - [Program QSPI from SD without JTAG or Vivado](docs/sd-flasher.md)
 
 ```sh
-make prepare RISCV_CC=clang RISCV_OBJCOPY=llvm-objcopy RISCV_LD=ld.lld
+# On x86-64 Linux with Vivado and the build tools installed:
+source /path/to/Vivado/settings64.sh
 make test
-# On the Vivado Linux host, after syncing the prepared sources:
-make fpga
+make fpga RISCV_CC=clang RISCV_OBJCOPY=llvm-objcopy RISCV_LD=ld.lld
 make fsbl
 ```
+
+`make fpga` prepares the RTL and Boot ROM before running Vivado. For a split
+build (for example, preparing inputs on macOS and running Vivado on Linux), see
+the optional [remote build workflow](docs/build.md#optional-remote-vivado-build).
 
 The board-specific Boot ROM is independent of verilator-axi-testbench's existing
 loader. A common generic OpenSBI/kernel/userspace build can run on both with
