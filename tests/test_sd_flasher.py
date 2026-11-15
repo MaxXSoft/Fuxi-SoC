@@ -17,14 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from flash_metadata import check_zynq_image, make_metadata
 from package_sd_flasher import prepare_spl
-
-
-def image():
-    data = bytearray(0x800080)
-    words = [0xaa995566, 0x584c4e58, 0, 0, 0x8c0, 4, 0, 0, 4, 0]
-    struct.pack_into('<11I', data, 0x20, *words, ~sum(words) & 0xffffffff)
-    data[0x800000:0x800008] = b'FUXISOC\0'
-    return bytes(data)
+from flasher_test_utils import image
 
 
 class PackageTests(unittest.TestCase):

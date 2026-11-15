@@ -14,9 +14,11 @@ RISCV_LD ?=
 OPENSBI ?=
 LINUX ?=
 UBOOT_CROSS_COMPILE ?= arm-none-eabi-
+UBOOT_SANDBOX ?=
+UBOOT_MKIMAGE ?=
 FLASH_IMAGE ?= $(ROOT)/build/flash/flash.bin
 
-.PHONY: all prepare rtl bootrom dtb test test-peripherals test-image project fpga fsbl payload flash sync sd-flasher sd-flasher-package test-sd-flasher
+.PHONY: all prepare rtl bootrom dtb test test-peripherals test-image project fpga fsbl payload flash sync sd-flasher sd-flasher-package test-sd-flasher test-sd-flasher-uboot
 all: prepare
 prepare: rtl bootrom dtb
 
@@ -31,7 +33,13 @@ dtb:
 	mkdir -p build
 	$(DTC) -I dts -O dtb -o build/fuxi-zedboard.dtb software/linux/fuxi-zedboard.dts
 
-test: test-peripherals test-image
+test: test-peripherals test-image test-sd-flasher
+ifneq ($(strip $(UBOOT_SANDBOX)),)
+test: test-sd-flasher-uboot
+else
+test:
+	@echo "SKIP: U-Boot sandbox tests (set UBOOT_SANDBOX=/path/to/sandbox/u-boot to enable)"
+endif
 
 test-peripherals:
 	mkdir -p build/tests/peripherals
@@ -73,6 +81,10 @@ sd-flasher-package:
 
 test-sd-flasher:
 	$(PYTHON) tests/test_sd_flasher.py
+
+test-sd-flasher-uboot:
+	@test -n "$(UBOOT_SANDBOX)" || { echo "Set UBOOT_SANDBOX to a native sandbox U-Boot executable" >&2; exit 1; }
+	$(PYTHON) tests/test_sd_flasher_uboot.py --uboot "$(UBOOT_SANDBOX)" $(if $(UBOOT_MKIMAGE),--mkimage "$(UBOOT_MKIMAGE)")
 
 sync:
 	test -n "$(REMOTE)" && test -n "$(REMOTE_DIR)"

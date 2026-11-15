@@ -141,16 +141,22 @@ change with the image. The generated manifest records package checksums, resolve
 U-Boot version, and the lack of physical-board validation. `make test-sd-flasher`
 checks package validation, reuse across images, and update failure handling
 (including stale/missing metadata) using host command stubs;
-it does not emulate Zynq hardware or prove a board boots.
+it is included in `make test` and does not emulate Zynq hardware or prove a board boots.
 
 An additional regression exercises the actual U-Boot interpreter, environment
 import, SHA-256, memory comparisons and `source` return status. It substitutes
 host-file reads for SD and RAM copies for QSPI, without touching hardware:
 
 ```sh
-python3 tests/test_sd_flasher_uboot.py \
-    --uboot /path/to/sandbox/u-boot --mkimage /path/to/tools/mkimage
+make test UBOOT_SANDBOX=/path/to/sandbox/u-boot
+# Or run only the interpreter regression:
+make test-sd-flasher-uboot UBOOT_SANDBOX=/path/to/sandbox/u-boot
 ```
+
+`UBOOT_MKIMAGE=/path/to/tools/mkimage` overrides the default `tools/mkimage`
+under the sandbox build directory. Without `UBOOT_SANDBOX`, `make test` prints
+an explicit skip message and runs the other tests; the standalone sandbox target
+requires the path and fails if it is missing.
 
 Use a native sandbox U-Boot built from the pinned source with its sibling
 `u-boot.dtb`, `CONFIG_SANDBOX_RAM_SIZE_MB=512`, and `CONFIG_HUSH_OLD_PARSER=y`

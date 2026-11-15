@@ -10,23 +10,26 @@ import argparse
 import hashlib
 from pathlib import Path
 import subprocess
+import sys
 
-from test_sd_flasher import image
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
 from flash_metadata import make_metadata
+from flasher_test_utils import image
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--uboot', type=Path, required=True)
-    parser.add_argument('--mkimage', type=Path, required=True)
+    parser.add_argument('--mkimage', type=Path,
+                        help='default: tools/mkimage beside the sandbox executable')
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parents[1]
-    work = root / 'build/tests/uboot-flasher'
+    work = ROOT / 'build/tests/uboot-flasher'
     work.mkdir(parents=True, exist_ok=True)
     uboot = args.uboot.resolve()
-    mkimage = args.mkimage.resolve()
-    source = (root / 'software/flasher/flash-fuxi.cmd').read_text()
+    mkimage = (args.mkimage or uboot.parent / 'tools/mkimage').resolve()
+    source = (ROOT / 'software/flasher/flash-fuxi.cmd').read_text()
 
     original = image()
     base_meta = make_metadata(original)

@@ -43,6 +43,10 @@ strobes/timer delivery, PLIC priorities, two-context claims, threshold,
 completion/retrigger and reserved registers. Host tests compile the **actual ROM
 C decoder** and round-trip raw/LZ4 images, check every header byte for corruption,
 and reject malformed blocks and out-of-range segments.
+`make test` also runs the SD flasher's host validation and failure-path checks.
+With `UBOOT_SANDBOX=/path/to/sandbox/u-boot`, it additionally runs the real U-Boot
+interpreter regression; otherwise it prints an explicit skip message for that
+regression. See [the sandbox requirements](sd-flasher.md#rebuild-the-maintenance-package).
 
 ## Local Vivado build
 
